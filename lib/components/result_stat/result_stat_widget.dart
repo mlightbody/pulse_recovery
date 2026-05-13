@@ -1,7 +1,5 @@
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -15,10 +13,10 @@ class ResultStatWidget extends StatefulWidget {
     String? idVal,
     String? label,
     String? value,
-  })  : this.idLabel = idLabel ?? 'sl1',
-        this.idVal = idVal ?? 'sv1',
-        this.label = label ?? 'Peak HR',
-        this.value = value ?? '164 bpm';
+  })  : idLabel = idLabel ?? 'sl1',
+        idVal = idVal ?? 'sv1',
+        label = label ?? 'Peak HR',
+        value = value ?? '164 bpm';
 
   final String idLabel;
   final String idVal;
@@ -33,12 +31,6 @@ class _ResultStatWidgetState extends State<ResultStatWidget> {
   late ResultStatModel _model;
 
   @override
-  void setState(VoidCallback callback) {
-    super.setState(callback);
-    _model.onUpdate();
-  }
-
-  @override
   void initState() {
     super.initState();
     _model = createModel(context, () => ResultStatModel());
@@ -47,7 +39,6 @@ class _ResultStatWidgetState extends State<ResultStatWidget> {
   @override
   void dispose() {
     _model.maybeDispose();
-
     super.dispose();
   }
 
@@ -55,14 +46,14 @@ class _ResultStatWidgetState extends State<ResultStatWidget> {
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          valueOrDefault<String>(
-            widget!.label,
-            'Peak HR',
-          ),
+          widget.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          textAlign: TextAlign.center,
           style: FlutterFlowTheme.of(context).labelMedium.override(
                 font: GoogleFonts.dmSans(
                   fontWeight:
@@ -71,16 +62,16 @@ class _ResultStatWidgetState extends State<ResultStatWidget> {
                 ),
                 color: FlutterFlowTheme.of(context).secondaryText,
                 letterSpacing: 0.0,
-                fontWeight: FlutterFlowTheme.of(context).labelMedium.fontWeight,
-                fontStyle: FlutterFlowTheme.of(context).labelMedium.fontStyle,
                 lineHeight: 1.3,
               ),
         ),
+        const SizedBox(height: 4.0),
         Text(
-          valueOrDefault<String>(
-            widget!.value,
-            '164 bpm',
-          ),
+          widget.value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          textAlign: TextAlign.center,
           style: FlutterFlowTheme.of(context).headlineMedium.override(
                 font: GoogleFonts.nunito(
                   fontWeight: FontWeight.bold,
@@ -89,13 +80,10 @@ class _ResultStatWidgetState extends State<ResultStatWidget> {
                 ),
                 color: FlutterFlowTheme.of(context).primaryText,
                 letterSpacing: 0.0,
-                fontWeight: FontWeight.bold,
-                fontStyle:
-                    FlutterFlowTheme.of(context).headlineMedium.fontStyle,
                 lineHeight: 1.25,
               ),
         ),
-      ].divide(SizedBox(height: 4.0)),
+      ],
     );
   }
 }

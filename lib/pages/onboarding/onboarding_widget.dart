@@ -38,6 +38,29 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
     super.dispose();
   }
 
+  void _navigateFromMenu(String value) {
+    switch (value) {
+      case 'dashboard':
+        context.goNamed(DashboardWidget.routeName);
+        break;
+      case 'new':
+        context.goNamed(NewAssessmentWidget.routeName);
+        break;
+      case 'result':
+        context.goNamed(AssessmentResultWidget.routeName);
+        break;
+      case 'progress':
+        context.goNamed(FitnessProgressWidget.routeName);
+        break;
+      case 'history':
+        context.goNamed(HistoryLogWidget.routeName);
+        break;
+      case 'settings':
+        context.goNamed(ProfileSettingsWidget.routeName);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -49,15 +72,12 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
         body: Padding(
-          padding: EdgeInsets.all(32.0),
+          padding: const EdgeInsets.all(32.0),
           child: Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               /// 🔹 Top Bar
               Row(
-                mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
@@ -75,7 +95,7 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                           size: 18,
                         ),
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         'Vigor',
                         style:
@@ -89,39 +109,12 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                     ],
                   ),
 
-                  /// ✅ NEW MENU
                   PopupMenuButton<String>(
                     icon: Icon(
                       Icons.menu_rounded,
                       color: FlutterFlowTheme.of(context).onBackground,
                     ),
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'dashboard':
-                          context.goNamed(DashboardWidget.routeName);
-                          break;
-                        case 'new':
-                          context.goNamed(
-                              NewAssessmentWidget.routeName);
-                          break;
-                        case 'result':
-                          context.goNamed(
-                              AssessmentResultWidget.routeName);
-                          break;
-                        case 'progress':
-                          context.goNamed(
-                              FitnessProgressWidget.routeName);
-                          break;
-                        case 'history':
-                          context.goNamed(
-                              HistoryLogWidget.routeName);
-                          break;
-                        case 'settings':
-                          context.goNamed(
-                              ProfileSettingsWidget.routeName);
-                          break;
-                      }
-                    },
+                    onSelected: _navigateFromMenu,
                     itemBuilder: (context) => const [
                       PopupMenuItem(
                         value: 'dashboard',
@@ -169,53 +162,69 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                           title: 'Listen to Your Heart',
                         ),
                       ),
-                      SizedBox(height: 32),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
               ),
 
-              /// 🔹 Bottom Section (unchanged)
+              /// 🔹 Bottom Section
               Column(
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          blurRadius: 16,
-                          color: FlutterFlowTheme.of(context).success20,
-                          offset: Offset(0, 8),
-                        )
-                      ],
-                    ),
-                    child: wrapWithModel(
-                      model: _model.buttonModel2,
-                      updateCallback: () => safeSetState(() {}),
-                      child: ButtonWidget(
-                        content: 'Get Started',
-                        variant: 'primary',
-                        size: 'large',
-                        fullWidth: true,
-                        loading: false,
-                        disabled: false,
-                        iconPresent: false,
-                        iconEndPresent: false,
+                  /// Get Started Button
+                  InkWell(
+                    onTap: () {
+                      context.goNamed(DashboardWidget.routeName);
+                    },
+                    borderRadius: BorderRadius.circular(32),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            blurRadius: 16,
+                            color: FlutterFlowTheme.of(context).success20,
+                            offset: const Offset(0, 8),
+                          )
+                        ],
+                      ),
+                      child: wrapWithModel(
+                        model: _model.buttonModel2,
+                        updateCallback: () => safeSetState(() {}),
+                        child: ButtonWidget(
+                          content: 'Get Started',
+                          variant: 'primary',
+                          size: 'large',
+                          fullWidth: true,
+                          loading: false,
+                          disabled: false,
+                          iconPresent: false,
+                          iconEndPresent: false,
+                        ),
                       ),
                     ),
                   ),
-                  SizedBox(height: 16),
+
+                  const SizedBox(height: 16),
+
+                  /// Info Row (FIXED)
                   Container(
                     decoration: BoxDecoration(
                       color: FlutterFlowTheme.of(context).accent20,
                       borderRadius: BorderRadius.circular(32),
                     ),
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.security_rounded, size: 16),
-                        SizedBox(width: 8),
-                        Text('Your data is stored locally and securely.'),
+                        const Icon(Icons.security_rounded, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Your data is stored locally and securely.',
+                            softWrap: true,
+                            textAlign: TextAlign.center,
+                            style: FlutterFlowTheme.of(context).bodyMedium,
+                          ),
+                        ),
                       ],
                     ),
                   ),
