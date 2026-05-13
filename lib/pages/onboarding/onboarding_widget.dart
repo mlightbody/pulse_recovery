@@ -98,26 +98,26 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                     onSelected: (value) {
                       switch (value) {
                         case 'dashboard':
-                          context.pushNamed(DashboardWidget.routeName);
+                          context.goNamed(DashboardWidget.routeName);
                           break;
                         case 'new':
-                          context.pushNamed(
+                          context.goNamed(
                               NewAssessmentWidget.routeName);
                           break;
                         case 'result':
-                          context.pushNamed(
+                          context.goNamed(
                               AssessmentResultWidget.routeName);
                           break;
                         case 'progress':
-                          context.pushNamed(
+                          context.goNamed(
                               FitnessProgressWidget.routeName);
                           break;
                         case 'history':
-                          context.pushNamed(
+                          context.goNamed(
                               HistoryLogWidget.routeName);
                           break;
                         case 'settings':
-                          context.pushNamed(
+                          context.goNamed(
                               ProfileSettingsWidget.routeName);
                           break;
                       }

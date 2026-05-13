@@ -81,22 +81,22 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         context.goNamed(OnboardingWidget.routeName);
         break;
       case 'dashboard':
-        context.pushNamed(DashboardWidget.routeName);
+        context.goNamed(DashboardWidget.routeName);
         break;
       case 'new':
-        context.pushNamed(NewAssessmentWidget.routeName);
+        context.goNamed(NewAssessmentWidget.routeName);
         break;
       case 'result':
-        context.pushNamed(AssessmentResultWidget.routeName);
+        context.goNamed(AssessmentResultWidget.routeName);
         break;
       case 'progress':
-        context.pushNamed(FitnessProgressWidget.routeName);
+        context.goNamed(FitnessProgressWidget.routeName);
         break;
       case 'history':
-        context.pushNamed(HistoryLogWidget.routeName);
+        context.goNamed(HistoryLogWidget.routeName);
         break;
       case 'settings':
-        context.pushNamed(ProfileSettingsWidget.routeName);
+        context.goNamed(ProfileSettingsWidget.routeName);
         break;
     }
   },
