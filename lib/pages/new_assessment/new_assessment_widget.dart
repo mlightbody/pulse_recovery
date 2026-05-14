@@ -49,6 +49,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   }
 
   void _generateAssessment() {
+    print('Generate Assessment tapped');
+
     final peakHr = int.tryParse(peakHrController.text.trim());
     final recoveryHr = int.tryParse(recoveryHrController.text.trim());
 
@@ -73,6 +75,10 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     final drop = peakHr - recoveryHr;
     final recoveryPercent = (drop / peakHr) * 100;
     final classification = _classificationFor(recoveryPercent);
+
+    print(
+      'Navigating to result: peak=$peakHr recovery=$recoveryHr percent=$recoveryPercent classification=$classification',
+    );
 
     context.goNamed(
       AssessmentResultWidget.routeName,
@@ -208,10 +214,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                   onSelected: _navigateFromMenu,
                   itemBuilder: (context) => const [
                     PopupMenuItem(value: 'home', child: Text('Home')),
-                    PopupMenuItem(
-                        value: 'dashboard', child: Text('Dashboard')),
-                    PopupMenuItem(
-                        value: 'new', child: Text('New Assessment')),
+                    PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
+                    PopupMenuItem(value: 'new', child: Text('New Assessment')),
                     PopupMenuItem(
                         value: 'result', child: Text('Assessment Result')),
                     PopupMenuItem(
@@ -243,7 +247,6 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                       ),
                 ),
                 const SizedBox(height: 32.0),
-
                 wrapWithModel(
                   model: _model.stepHeaderModel1,
                   updateCallback: () => safeSetState(() {}),
@@ -300,9 +303,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                     selected: false,
                   ),
                 ),
-
                 const SizedBox(height: 32.0),
-
                 wrapWithModel(
                   model: _model.stepHeaderModel2,
                   updateCallback: () => safeSetState(() {}),
@@ -324,9 +325,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                     _durationChip('45+ min'),
                   ],
                 ),
-
                 const SizedBox(height: 32.0),
-
                 wrapWithModel(
                   model: _model.stepHeaderModel3,
                   updateCallback: () => safeSetState(() {}),
@@ -339,7 +338,6 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                   ),
                 ),
                 const SizedBox(height: 16.0),
-
                 Container(
                   decoration: BoxDecoration(
                     color: FlutterFlowTheme.of(context).secondaryBackground,
@@ -407,12 +405,10 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 32.0),
-
-                InkWell(
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: _generateAssessment,
-                  borderRadius: BorderRadius.circular(32.0),
                   child: wrapWithModel(
                     model: _model.buttonModel,
                     updateCallback: () => safeSetState(() {}),
