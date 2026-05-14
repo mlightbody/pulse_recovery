@@ -24,7 +24,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final peakHrController = TextEditingController();
-  final recoveryHrController = TextEditingController();
+  final hr60Controller = TextEditingController();
+  final hr120Controller = TextEditingController();
 
   @override
   void initState() {
@@ -35,26 +36,33 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   @override
   void dispose() {
     peakHrController.dispose();
-    recoveryHrController.dispose();
+    hr60Controller.dispose();
+    hr120Controller.dispose();
     _model.dispose();
     super.dispose();
   }
 
-  String _classificationFor(double recoveryPercent) {
-    if (recoveryPercent < 15) return 'Poor';
-    if (recoveryPercent < 25) return 'Fair';
-    if (recoveryPercent < 35) return 'Average';
-    if (recoveryPercent < 45) return 'Good';
-    return 'Elite';
+  String _earlyRecoveryAssessmentFor(int hrr60) {
+    if (hrr60 < 12) return 'Low';
+    if (hrr60 < 20) return 'Moderate';
+    if (hrr60 < 30) return 'Good';
+    return 'Excellent';
+  }
+
+  String _overallRecoveryAssessmentFor(int hrr120) {
+    if (hrr120 < 22) return 'Poor';
+    if (hrr120 < 35) return 'Fair';
+    if (hrr120 < 45) return 'Average';
+    if (hrr120 < 60) return 'Good';
+    return 'Excellent';
   }
 
   void _generateAssessment() {
-    print('Generate Assessment tapped');
-
     final peakHr = int.tryParse(peakHrController.text.trim());
-    final recoveryHr = int.tryParse(recoveryHrController.text.trim());
+    final hr60 = int.tryParse(hr60Controller.text.trim());
+    final hr120 = int.tryParse(hr120Controller.text.trim());
 
-    if (peakHr == null || recoveryHr == null || peakHr <= 0) {
+    if (peakHr == null || hr60 == null || hr120 == null || peakHr <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter valid heart rate values.'),
@@ -63,30 +71,45 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       return;
     }
 
-    if (recoveryHr >= peakHr) {
+    if (hr60 >= peakHr || hr120 >= peakHr) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Recovery HR should be lower than peak HR.'),
+          content: Text('Recovery heart rates should be lower than peak HR.'),
         ),
       );
       return;
     }
 
-    final drop = peakHr - recoveryHr;
-    final recoveryPercent = (drop / peakHr) * 100;
-    final classification = _classificationFor(recoveryPercent);
+    if (hr120 > hr60) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '120-second HR should usually be lower than 60-second HR.',
+          ),
+        ),
+      );
+      return;
+    }
 
-    print(
-      'Navigating to result: peak=$peakHr recovery=$recoveryHr percent=$recoveryPercent classification=$classification',
-    );
+    final hrr60 = peakHr - hr60;
+    final hrr120 = peakHr - hr120;
+    final recoveryPercent120 = (hrr120 / peakHr) * 100;
+
+    final earlyRecoveryAssessment = _earlyRecoveryAssessmentFor(hrr60);
+    final overallRecoveryAssessment = _overallRecoveryAssessmentFor(hrr120);
 
     context.goNamed(
       AssessmentResultWidget.routeName,
       queryParameters: {
         'peakHr': serializeParam(peakHr, ParamType.int),
-        'recoveryHr': serializeParam(recoveryHr, ParamType.int),
-        'recoveryPercent': serializeParam(recoveryPercent, ParamType.double),
-        'classification': serializeParam(classification, ParamType.String),
+        'hr60': serializeParam(hr60, ParamType.int),
+        'hr120': serializeParam(hr120, ParamType.int),
+        'recoveryPercent120':
+            serializeParam(recoveryPercent120, ParamType.double),
+        'earlyRecoveryAssessment':
+            serializeParam(earlyRecoveryAssessment, ParamType.String),
+        'overallRecoveryAssessment':
+            serializeParam(overallRecoveryAssessment, ParamType.String),
       }.withoutNulls,
     );
   }
@@ -192,6 +215,94 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     );
   }
 
+  Widget _inputSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: FlutterFlowTheme.of(context).secondaryBackground,
+        borderRadius: BorderRadius.circular(40.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Peak Heart Rate',
+              style: FlutterFlowTheme.of(context).labelLarge.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                    color: FlutterFlowTheme.of(context).primaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.3,
+                  ),
+            ),
+            const SizedBox(height: 8.0),
+            TextFormField(
+              controller: peakHrController,
+              keyboardType: TextInputType.number,
+              decoration: _inputDecoration(
+                hint: 'e.g. 165',
+                helper: 'BPM at the end of exercise',
+                icon: Icons.favorite_rounded,
+              ),
+            ),
+            const SizedBox(height: 24.0),
+            Divider(
+              height: 16.0,
+              thickness: 1.0,
+              color: FlutterFlowTheme.of(context).alternate,
+            ),
+            const SizedBox(height: 24.0),
+            Text(
+              '60-Second Recovery HR',
+              style: FlutterFlowTheme.of(context).labelLarge.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                    color: FlutterFlowTheme.of(context).primaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.3,
+                  ),
+            ),
+            const SizedBox(height: 8.0),
+            TextFormField(
+              controller: hr60Controller,
+              keyboardType: TextInputType.number,
+              decoration: _inputDecoration(
+                hint: 'e.g. 135',
+                helper: 'BPM after 60 seconds of recovery',
+                icon: Icons.timer_rounded,
+              ),
+            ),
+            const SizedBox(height: 24.0),
+            Divider(
+              height: 16.0,
+              thickness: 1.0,
+              color: FlutterFlowTheme.of(context).alternate,
+            ),
+            const SizedBox(height: 24.0),
+            Text(
+              '120-Second Recovery HR',
+              style: FlutterFlowTheme.of(context).labelLarge.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                    color: FlutterFlowTheme.of(context).primaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.3,
+                  ),
+            ),
+            const SizedBox(height: 8.0),
+            TextFormField(
+              controller: hr120Controller,
+              keyboardType: TextInputType.number,
+              decoration: _inputDecoration(
+                hint: 'e.g. 120',
+                helper: 'BPM after 120 seconds of recovery',
+                icon: Icons.timer_outlined,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -238,7 +349,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                 ),
                 const SizedBox(height: 4.0),
                 Text(
-                  'Measure your heart rate recovery to track aerobic fitness.',
+                  'Enter your peak, 60-second and 120-second heart rate readings.',
                   style: FlutterFlowTheme.of(context).bodyMedium.override(
                         font: GoogleFonts.dmSans(),
                         color: FlutterFlowTheme.of(context).secondaryText,
@@ -338,73 +449,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                   ),
                 ),
                 const SizedBox(height: 16.0),
-                Container(
-                  decoration: BoxDecoration(
-                    color: FlutterFlowTheme.of(context).secondaryBackground,
-                    borderRadius: BorderRadius.circular(40.0),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Peak Heart Rate',
-                          style:
-                              FlutterFlowTheme.of(context).labelLarge.override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    color:
-                                        FlutterFlowTheme.of(context).primaryText,
-                                    letterSpacing: 0.0,
-                                    lineHeight: 1.3,
-                                  ),
-                        ),
-                        const SizedBox(height: 8.0),
-                        TextFormField(
-                          controller: peakHrController,
-                          keyboardType: TextInputType.number,
-                          decoration: _inputDecoration(
-                            hint: 'e.g. 165',
-                            helper: 'BPM at the end of exercise',
-                            icon: Icons.favorite_rounded,
-                          ),
-                        ),
-                        const SizedBox(height: 24.0),
-                        Divider(
-                          height: 16.0,
-                          thickness: 1.0,
-                          color: FlutterFlowTheme.of(context).alternate,
-                        ),
-                        const SizedBox(height: 24.0),
-                        Text(
-                          '2-Minute Recovery HR',
-                          style:
-                              FlutterFlowTheme.of(context).labelLarge.override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    color:
-                                        FlutterFlowTheme.of(context).primaryText,
-                                    letterSpacing: 0.0,
-                                    lineHeight: 1.3,
-                                  ),
-                        ),
-                        const SizedBox(height: 8.0),
-                        TextFormField(
-                          controller: recoveryHrController,
-                          keyboardType: TextInputType.number,
-                          decoration: _inputDecoration(
-                            hint: 'e.g. 130',
-                            helper: 'BPM after 2 minutes of rest',
-                            icon: Icons.favorite_border_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _inputSection(),
                 const SizedBox(height: 32.0),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,

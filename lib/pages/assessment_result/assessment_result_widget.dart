@@ -16,18 +16,22 @@ class AssessmentResultWidget extends StatefulWidget {
   const AssessmentResultWidget({
     super.key,
     this.peakHr,
-    this.recoveryHr,
-    this.recoveryPercent,
-    this.classification,
+    this.hr60,
+    this.hr120,
+    this.recoveryPercent120,
+    this.earlyRecoveryAssessment,
+    this.overallRecoveryAssessment,
   });
 
   static String routeName = 'AssessmentResult';
   static String routePath = '/assessmentResult';
 
   final int? peakHr;
-  final int? recoveryHr;
-  final double? recoveryPercent;
-  final String? classification;
+  final int? hr60;
+  final int? hr120;
+  final double? recoveryPercent120;
+  final String? earlyRecoveryAssessment;
+  final String? overallRecoveryAssessment;
 
   @override
   State<AssessmentResultWidget> createState() => _AssessmentResultWidgetState();
@@ -79,15 +83,78 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
   bool _isActive(String band, String classification) =>
       band.toLowerCase() == classification.toLowerCase();
 
+  Widget _smallStat({
+    required String label,
+    required String value,
+    required String subtitle,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: FlutterFlowTheme.of(context).primaryBackground,
+        borderRadius: BorderRadius.circular(20.0),
+        border: Border.all(
+          color: FlutterFlowTheme.of(context).alternate,
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: FlutterFlowTheme.of(context).labelMedium.override(
+                    font: GoogleFonts.dmSans(),
+                    color: FlutterFlowTheme.of(context).secondaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.3,
+                  ),
+            ),
+            const SizedBox(height: 4.0),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: FlutterFlowTheme.of(context).titleLarge.override(
+                    font: GoogleFonts.nunito(fontWeight: FontWeight.bold),
+                    color: FlutterFlowTheme.of(context).primaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.25,
+                  ),
+            ),
+            const SizedBox(height: 4.0),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: FlutterFlowTheme.of(context).bodySmall.override(
+                    font: GoogleFonts.dmSans(),
+                    color: FlutterFlowTheme.of(context).secondaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.5,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final peakHr = widget.peakHr ?? 164;
-    final recoveryHr = widget.recoveryHr ?? 95;
-    final recoveryPercent = widget.recoveryPercent ?? 42.0;
-    final classification = widget.classification ?? 'Good';
+    final hr60 = widget.hr60 ?? 130;
+    final hr120 = widget.hr120 ?? 115;
+    final recoveryPercent120 = widget.recoveryPercent120 ?? 30.0;
+    final earlyRecoveryAssessment = widget.earlyRecoveryAssessment ?? 'Good';
+    final overallRecoveryAssessment = widget.overallRecoveryAssessment ?? 'Good';
 
-    final drop = peakHr - recoveryHr;
-    final recoveryPercentRounded = recoveryPercent.round().clamp(0, 100);
+    final hrr60 = peakHr - hr60;
+    final hrr120 = peakHr - hr120;
+    final recoveryPercentRounded = recoveryPercent120.round().clamp(0, 100);
     final remainingPercent = 100 - recoveryPercentRounded;
 
     return GestureDetector(
@@ -111,12 +178,18 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                   PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
                   PopupMenuItem(value: 'new', child: Text('New Assessment')),
                   PopupMenuItem(
-                      value: 'result', child: Text('Assessment Result')),
+                    value: 'result',
+                    child: Text('Assessment Result'),
+                  ),
                   PopupMenuItem(
-                      value: 'progress', child: Text('Fitness Progress')),
+                    value: 'progress',
+                    child: Text('Fitness Progress'),
+                  ),
                   PopupMenuItem(value: 'history', child: Text('History Log')),
                   PopupMenuItem(
-                      value: 'settings', child: Text('Profile Settings')),
+                    value: 'settings',
+                    child: Text('Profile Settings'),
+                  ),
                 ],
               ),
               Padding(
@@ -169,10 +242,9 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 32.0),
 
-                    Container(
+                    SizedBox(
                       width: 240.0,
                       height: 240.0,
                       child: Stack(
@@ -210,7 +282,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                               colors: '#A8B5A0,divider',
                               centerValue: '$recoveryPercentRounded%',
                               centerValuePresent: true,
-                              centerLabel: 'Reduction',
+                              centerLabel: '120s Reduction',
                               centerLabelPresent: true,
                               animate: false,
                               startAngle: -90.0,
@@ -229,7 +301,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                     const SizedBox(height: 24.0),
 
                     Text(
-                      'Fitness Classification',
+                      'Overall Recovery Classification',
                       style: FlutterFlowTheme.of(context).labelLarge.override(
                             font: GoogleFonts.dmSans(),
                             color: FlutterFlowTheme.of(context).secondaryText,
@@ -251,7 +323,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                           8.0,
                         ),
                         child: Text(
-                          classification,
+                          overallRecoveryAssessment,
                           style: FlutterFlowTheme.of(context)
                               .titleMedium
                               .override(
@@ -289,7 +361,8 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                               idBar: 'b1',
                               idTxt: 't1',
                               label: 'Poor',
-                              isActive: _isActive('Poor', classification),
+                              isActive: _isActive(
+                                  'Poor', overallRecoveryAssessment),
                             ),
                           ),
                         ),
@@ -303,7 +376,8 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                               idBar: 'b2',
                               idTxt: 't2',
                               label: 'Fair',
-                              isActive: _isActive('Fair', classification),
+                              isActive:
+                                  _isActive('Fair', overallRecoveryAssessment),
                             ),
                           ),
                         ),
@@ -317,7 +391,8 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                               idBar: 'b3',
                               idTxt: 't3',
                               label: 'Average',
-                              isActive: _isActive('Average', classification),
+                              isActive: _isActive(
+                                  'Average', overallRecoveryAssessment),
                             ),
                           ),
                         ),
@@ -331,7 +406,8 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                               idBar: 'b4',
                               idTxt: 't4',
                               label: 'Good',
-                              isActive: _isActive('Good', classification),
+                              isActive:
+                                  _isActive('Good', overallRecoveryAssessment),
                             ),
                           ),
                         ),
@@ -344,8 +420,9 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                               color: '#8FA385',
                               idBar: 'b5',
                               idTxt: 't5',
-                              label: 'Elite',
-                              isActive: _isActive('Elite', classification),
+                              label: 'Excellent',
+                              isActive: _isActive(
+                                  'Excellent', overallRecoveryAssessment),
                             ),
                           ),
                         ),
@@ -390,8 +467,8 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                                     child: ResultStatWidget(
                                       idLabel: 'sl2',
                                       idVal: 'sv2',
-                                      label: 'Recovery HR',
-                                      value: '$recoveryHr bpm',
+                                      label: '120s HR',
+                                      value: '$hr120 bpm',
                                     ),
                                   ),
                                 ),
@@ -404,6 +481,26 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                             ),
                             Row(
                               children: [
+                                Expanded(
+                                  child: _smallStat(
+                                    label: '60s Drop',
+                                    value: '$hrr60 bpm',
+                                    subtitle: earlyRecoveryAssessment,
+                                  ),
+                                ),
+                                const SizedBox(width: 12.0),
+                                Expanded(
+                                  child: _smallStat(
+                                    label: '120s Drop',
+                                    value: '$hrr120 bpm',
+                                    subtitle: overallRecoveryAssessment,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24.0),
+                            Row(
+                              children: [
                                 Icon(
                                   Icons.fitness_center_rounded,
                                   color: FlutterFlowTheme.of(context)
@@ -413,7 +510,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                                 const SizedBox(width: 8.0),
                                 Expanded(
                                   child: Text(
-                                    'Manual Assessment • 2-Minute Recovery',
+                                    'Manual Assessment • 60s and 120s Recovery',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: FlutterFlowTheme.of(context)
@@ -504,7 +601,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                                   ),
                                   const SizedBox(height: 4.0),
                                   Text(
-                                    'Your heart rate dropped $drop bpm in 2 minutes. This represents a $recoveryPercentRounded% reduction from peak heart rate and gives a fitness classification of $classification.',
+                                    'Your heart rate dropped $hrr60 bpm in the first 60 seconds and $hrr120 bpm after 120 seconds. The 60-second drop reflects early autonomic recovery, while the 120-second drop gives a broader view of overall recovery. Early recovery: $earlyRecoveryAssessment. Overall recovery: $overallRecoveryAssessment.',
                                     style: FlutterFlowTheme.of(context)
                                         .bodySmall
                                         .override(

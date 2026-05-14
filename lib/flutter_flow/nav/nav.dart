@@ -66,11 +66,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: AssessmentResultWidget.routePath,
           builder: (context, params) => AssessmentResultWidget(
             peakHr: params.getParam('peakHr', ParamType.int),
-            recoveryHr: params.getParam('recoveryHr', ParamType.int),
-            recoveryPercent:
-                params.getParam('recoveryPercent', ParamType.double),
-            classification:
-                params.getParam('classification', ParamType.String),
+            hr60: params.getParam('hr60', ParamType.int),
+            hr120: params.getParam('hr120', ParamType.int),
+            recoveryPercent120:
+                params.getParam('recoveryPercent120', ParamType.double),
+            earlyRecoveryAssessment:
+                params.getParam('earlyRecoveryAssessment', ParamType.String),
+            overallRecoveryAssessment:
+                params.getParam('overallRecoveryAssessment', ParamType.String),
           ),
         ),
         FFRoute(
