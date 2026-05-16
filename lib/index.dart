@@ -10,3 +10,7 @@ export '/pages/fitness_progress/fitness_progress_widget.dart'
 export '/pages/history_log/history_log_widget.dart' show HistoryLogWidget;
 export '/pages/profile_settings/profile_settings_widget.dart'
     show ProfileSettingsWidget;
+export '/pages/auth/login_register_widget.dart' 
+    show LoginRegisterWidget;
+export '/pages/auth/auth_gate_widget.dart' 
+    show AuthGateWidget;

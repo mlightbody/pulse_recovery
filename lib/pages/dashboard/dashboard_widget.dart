@@ -12,6 +12,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'dashboard_model.dart';
 export 'dashboard_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DashboardWidget extends StatefulWidget {
   const DashboardWidget({super.key});
@@ -608,6 +609,24 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                     ),
 
                     const SizedBox(height: 20.0),
+
+// 🔥 LOGOUT BUTTON
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+  child: ElevatedButton(
+    onPressed: () async {
+      await FirebaseAuth.instance.signOut();
+    },
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.redAccent,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+    ),
+    child: const Text(
+      'Log Out',
+      style: TextStyle(color: Colors.white),
+    ),
+  ),
+),
                   ].divide(const SizedBox(height: 32.0)),
                 ),
               ),

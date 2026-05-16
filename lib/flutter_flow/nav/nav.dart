@@ -39,12 +39,22 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
-      errorBuilder: (context, state) => const OnboardingWidget(),
+      errorBuilder: (context, state) => const AuthGateWidget(),
       routes: [
         FFRoute(
           name: '_initialize',
           path: '/',
-          builder: (context, _) => const OnboardingWidget(),
+          builder: (context, _) => const AuthGateWidget(),
+        ),
+        FFRoute(
+          name: AuthGateWidget.routeName,
+          path: AuthGateWidget.routePath,
+          builder: (context, params) => const AuthGateWidget(),
+        ),
+        FFRoute(
+          name: LoginRegisterWidget.routeName,
+          path: LoginRegisterWidget.routePath,
+          builder: (context, params) => const LoginRegisterWidget(),
         ),
         FFRoute(
           name: OnboardingWidget.routeName,
