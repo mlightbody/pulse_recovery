@@ -14,3 +14,5 @@ export '/pages/auth/login_register_widget.dart'
     show LoginRegisterWidget;
 export '/pages/auth/auth_gate_widget.dart' 
     show AuthGateWidget;
+export '/pages/auth/verify_email_widget.dart' 
+    show VerifyEmailWidget;

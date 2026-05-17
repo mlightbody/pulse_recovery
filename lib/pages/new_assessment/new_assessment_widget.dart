@@ -5,6 +5,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/utils/recovery_pattern.dart';
+import '/services/assessment_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'new_assessment_model.dart';
@@ -64,7 +65,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     return 'Excellent';
   }
 
-  void _generateAssessment() {
+  Future<void> _generateAssessment() async {
     final peakHr = int.tryParse(peakHrController.text.trim());
     final hr60 = int.tryParse(hr60Controller.text.trim());
     final hr120 = int.tryParse(hr120Controller.text.trim());
@@ -128,6 +129,32 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       hr120: hr120,
     );
 
+    try {
+      await AssessmentService().saveAssessment(
+        peakHr: peakHr,
+        hr60: hr60,
+        hr120: hr120,
+        hrr60: hrr60,
+        hrr120: hrr120,
+        recoveryPercent120: recoveryPercent120,
+        earlyRecoveryAssessment: earlyRecoveryAssessment,
+        overallRecoveryAssessment: overallRecoveryAssessment,
+        recoveryPattern: recoveryPattern.label,
+        duringEffortRating: rpe,
+        postWorkoutFeelingRating: feelingAfter,
+        notes: null,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not save assessment: $e'),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
     context.goNamed(
       AssessmentResultWidget.routeName,
       queryParameters: {
@@ -140,10 +167,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
             serializeParam(earlyRecoveryAssessment, ParamType.String),
         'overallRecoveryAssessment':
             serializeParam(overallRecoveryAssessment, ParamType.String),
-
         'rpe': serializeParam(rpe, ParamType.int),
         'feelingAfter': serializeParam(feelingAfter, ParamType.int),
-
         'drop1': serializeParam(recoveryPattern.drop1, ParamType.int),
         'drop2': serializeParam(recoveryPattern.drop2, ParamType.int),
         'recoveryPatternRatio':

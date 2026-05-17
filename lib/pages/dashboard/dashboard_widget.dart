@@ -616,6 +616,7 @@ Padding(
   child: ElevatedButton(
     onPressed: () async {
       await FirebaseAuth.instance.signOut();
+            context.go('/');
     },
     style: ElevatedButton.styleFrom(
       backgroundColor: Colors.redAccent,

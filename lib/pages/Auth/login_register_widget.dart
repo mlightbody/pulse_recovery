@@ -48,6 +48,7 @@ class _LoginRegisterWidgetState extends State<LoginRegisterWidget> {
           email: email,
           password: password,
         );
+        await FirebaseAuth.instance.currentUser?.sendEmailVerification();
       }
     } on FirebaseAuthException catch (e) {
       setState(() {

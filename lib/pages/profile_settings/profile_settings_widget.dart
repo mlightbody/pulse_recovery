@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'profile_settings_model.dart';
 export 'profile_settings_model.dart';
+import '/services/user_profile_service.dart';
 
 class ProfileSettingsWidget extends StatefulWidget {
   const ProfileSettingsWidget({super.key});
@@ -104,6 +105,22 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                   lineHeight: 1.3,
                                 ),
                           ),
+
+ElevatedButton(
+  onPressed: () async {
+    final service = UserProfileService();
+
+    await service.createOrUpdateProfile(
+      displayName: 'Malcolm',
+      dateOfBirth: DateTime(1962, 2, 16),
+      restingHr: 56,
+    );
+
+    print('Profile saved');
+  },
+  child: const Text('Create Test Profile'),
+),
+
                           FlutterFlowIconButton(
                             borderRadius: 8.0,
                             buttonSize: 40.0,

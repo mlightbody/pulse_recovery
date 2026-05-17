@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '/pages/auth/login_register_widget.dart';
 import '/pages/dashboard/dashboard_widget.dart';
+import '/pages/auth/verify_email_widget.dart';
 
 class AuthGateWidget extends StatelessWidget {
   const AuthGateWidget({super.key});
@@ -31,6 +32,11 @@ class AuthGateWidget extends StatelessWidget {
         }
 
         // Logged in → go to dashboard
+        final user = snapshot.data;
+
+if (user != null && !user.emailVerified) {
+  return VerifyEmailWidget();
+}
         return const DashboardWidget();
       },
     );
