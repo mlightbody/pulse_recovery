@@ -140,6 +140,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         earlyRecoveryAssessment: earlyRecoveryAssessment,
         overallRecoveryAssessment: overallRecoveryAssessment,
         recoveryPattern: recoveryPattern.label,
+        recoveryPatternDescription: recoveryPattern.description,
+        recoveryPatternAdvice: recoveryPattern.shortAdvice,
         duringEffortRating: rpe,
         postWorkoutFeelingRating: feelingAfter,
         notes: null,

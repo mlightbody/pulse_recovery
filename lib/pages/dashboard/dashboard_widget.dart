@@ -6,13 +6,13 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
+import '/services/trend_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'dashboard_model.dart';
 export 'dashboard_model.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class DashboardWidget extends StatefulWidget {
   const DashboardWidget({super.key});
@@ -29,16 +29,39 @@ class _DashboardWidgetState extends State<DashboardWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  RecoveryTrendSummary? _trendSummary;
+  bool _isLoadingTrends = true;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => DashboardModel());
+    _loadTrends();
   }
 
   @override
   void dispose() {
     _model.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTrends() async {
+    try {
+      final summary = await TrendService().getRecoveryTrendSummary();
+
+      if (!mounted) return;
+
+      setState(() {
+        _trendSummary = summary;
+        _isLoadingTrends = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoadingTrends = false;
+      });
+    }
   }
 
   void _navigateFromMenu(String value) {
@@ -67,6 +90,183 @@ class _DashboardWidgetState extends State<DashboardWidget> {
     }
   }
 
+  PopupMenuButton<String> _menuButton() {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.menu_rounded),
+      onSelected: _navigateFromMenu,
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'home', child: Text('Home')),
+        PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
+        PopupMenuItem(value: 'new', child: Text('New Assessment')),
+        PopupMenuItem(value: 'result', child: Text('Assessment Result')),
+        PopupMenuItem(value: 'progress', child: Text('Fitness Progress')),
+        PopupMenuItem(value: 'history', child: Text('History Log')),
+        PopupMenuItem(value: 'settings', child: Text('Profile Settings')),
+      ],
+    );
+  }
+
+  Widget _trendInsightCard() {
+    if (_isLoadingTrends) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: FlutterFlowTheme.of(context).alternate,
+          ),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final summary = _trendSummary;
+
+    if (summary == null) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: FlutterFlowTheme.of(context).alternate,
+          ),
+        ),
+        child: Text(
+          'Trend insights are not available yet.',
+          style: FlutterFlowTheme.of(context).bodyMedium,
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: FlutterFlowTheme.of(context).secondaryBackground,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: FlutterFlowTheme.of(context).alternate,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Recovery Trend',
+                  style: FlutterFlowTheme.of(context).titleMedium.override(
+                        font: GoogleFonts.dmSans(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        color: FlutterFlowTheme.of(context).primaryText,
+                      ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: FlutterFlowTheme.of(context).primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  summary.trendLabel,
+                  style: FlutterFlowTheme.of(context).labelSmall.override(
+                        font: GoogleFonts.dmSans(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        color: FlutterFlowTheme.of(context).primary,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            summary.dashboardSummary,
+            style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  font: GoogleFonts.dmSans(),
+                  color: FlutterFlowTheme.of(context).primaryText,
+                  lineHeight: 1.45,
+                ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Coaching focus',
+            style: FlutterFlowTheme.of(context).labelLarge.override(
+                  font: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+                  color: FlutterFlowTheme.of(context).primaryText,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            summary.coachingFocus,
+            style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  font: GoogleFonts.dmSans(),
+                  color: FlutterFlowTheme.of(context).secondaryText,
+                  lineHeight: 1.45,
+                ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'What to track next',
+            style: FlutterFlowTheme.of(context).labelLarge.override(
+                  font: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+                  color: FlutterFlowTheme.of(context).primaryText,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            summary.whatToTrackNext,
+            style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  font: GoogleFonts.dmSans(),
+                  color: FlutterFlowTheme.of(context).secondaryText,
+                  lineHeight: 1.45,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _latestRecoveryText() {
+    final value = _trendSummary?.latestRecoveryPercent120;
+    if (value == null) return '—';
+    return '${value.toStringAsFixed(1)}%';
+  }
+
+  String _averageRecoveryText() {
+    final value = _trendSummary?.recentAverageRecoveryPercent120;
+    if (value == null) return '—';
+    return '${value.toStringAsFixed(1)}%';
+  }
+
+  String _totalTestsText() {
+    final count = _trendSummary?.assessmentCount;
+    if (count == null) return '—';
+    return count.toString();
+  }
+
+  String _latestBandText() {
+    final direction = _trendSummary?.trendDirection;
+
+    if (direction == null) return 'No data';
+
+    switch (direction) {
+      case TrendDirection.improving:
+        return 'Improving';
+      case TrendDirection.stable:
+        return 'Stable';
+      case TrendDirection.declining:
+        return 'Declining';
+      case TrendDirection.notEnoughData:
+        return 'Building baseline';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -77,35 +277,13 @@ class _DashboardWidgetState extends State<DashboardWidget> {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        body: SingleChildScrollView(
-          primary: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.menu_rounded),
-                onSelected: _navigateFromMenu,
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'home', child: Text('Home')),
-                  PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
-                  PopupMenuItem(value: 'new', child: Text('New Assessment')),
-                  PopupMenuItem(
-                    value: 'result',
-                    child: Text('Assessment Result'),
-                  ),
-                  PopupMenuItem(
-                    value: 'progress',
-                    child: Text('Fitness Progress'),
-                  ),
-                  PopupMenuItem(value: 'history', child: Text('History Log')),
-                  PopupMenuItem(
-                    value: 'settings',
-                    child: Text('Profile Settings'),
-                  ),
-                ],
-              ),
-              Padding(
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: _loadTrends,
+            child: SingleChildScrollView(
+              primary: false,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -187,6 +365,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                             ),
                           ),
                         ),
+                        _menuButton(),
                       ],
                     ),
 
@@ -238,7 +417,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                                       8.0,
                                     ),
                                     child: Text(
-                                      'Excellent',
+                                      _latestBandText(),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: FlutterFlowTheme.of(context)
@@ -261,7 +440,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  '42%',
+                                  _latestRecoveryText(),
                                   style: FlutterFlowTheme.of(context)
                                       .headlineLarge
                                       .override(
@@ -276,7 +455,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                                       ),
                                 ),
                                 Text(
-                                  'Heart Rate Recovery',
+                                  '120-second recovery',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: FlutterFlowTheme.of(context)
@@ -322,7 +501,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                       ),
                     ),
 
-                    /// Metric cards - responsive fix for overflow
+                    /// Metric cards
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final useSingleColumn = constraints.maxWidth < 420;
@@ -347,7 +526,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                                     size: 18.0,
                                   ),
                                   label: 'Avg. Recovery',
-                                  value: '34%',
+                                  value: _averageRecoveryText(),
                                 ),
                               ),
                             ),
@@ -364,7 +543,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                                     size: 18.0,
                                   ),
                                   label: 'Total Tests',
-                                  value: '12',
+                                  value: _totalTestsText(),
                                 ),
                               ),
                             ),
@@ -373,7 +552,9 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                       },
                     ),
 
-                    /// Recovery Trend
+                    _trendInsightCard(),
+
+                    /// Recovery Trend Graph Placeholder
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -381,7 +562,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Recovery Trend',
+                                'Progress Analytics',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: FlutterFlowTheme.of(context)
@@ -426,7 +607,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                           ],
                         ),
                         Container(
-                          height: 180.0,
+                          padding: const EdgeInsets.all(24.0),
                           decoration: BoxDecoration(
                             color: FlutterFlowTheme.of(context)
                                 .secondaryBackground,
@@ -436,79 +617,16 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                               width: 1.0,
                             ),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: SizedBox(
-                              height: 132.0,
-                              child: FlutterFlowLineChart(
-                                data: [
-                                  FFLineChartData(
-                                    xData: const [
-                                      0.0,
-                                      1.0,
-                                      2.0,
-                                      3.0,
-                                      4.0,
-                                      5.0,
-                                    ],
-                                    yData: const [
-                                      28.0,
-                                      32.0,
-                                      30.0,
-                                      35.0,
-                                      38.0,
-                                      42.0,
-                                    ],
-                                    settings: LineChartBarData(
-                                      color:
-                                          FlutterFlowTheme.of(context).success,
-                                      barWidth: 2.0,
-                                      isCurved: true,
-                                      belowBarData: BarAreaData(
-                                        show: true,
-                                        color: FlutterFlowTheme.of(context)
-                                            .success20,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                chartStylingInfo: const ChartStylingInfo(
-                                  backgroundColor: Colors.transparent,
-                                  showBorder: false,
+                          child: Text(
+                            'Use Fitness Progress for detailed recovery charts and longer-term analysis.',
+                            textAlign: TextAlign.center,
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.dmSans(),
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryText,
                                 ),
-                                axisBounds: const AxisBounds(
-                                  minX: 0.0,
-                                  minY: 0.0,
-                                  maxX: 5.0,
-                                  maxY: 50.4,
-                                ),
-                                xLabels: const [
-                                  'Mon',
-                                  'Tue',
-                                  'Wed',
-                                  'Thu',
-                                  'Fri',
-                                  'Sat',
-                                ],
-                                xAxisLabelInfo: AxisLabelInfo(
-                                  showLabels: true,
-                                  labelTextStyle: FlutterFlowTheme.of(context)
-                                      .bodySmall
-                                      .override(
-                                        font: GoogleFonts.dmSans(),
-                                        color: FlutterFlowTheme.of(context)
-                                            .secondaryText,
-                                        fontSize: 10.0,
-                                        letterSpacing: 0.0,
-                                        lineHeight: 1.0,
-                                      ),
-                                  reservedSize: 28.0,
-                                ),
-                                yAxisLabelInfo: const AxisLabelInfo(
-                                  reservedSize: 0.0,
-                                ),
-                              ),
-                            ),
                           ),
                         ),
                       ].divide(const SizedBox(height: 16.0)),
@@ -533,58 +651,6 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                                 lineHeight: 1.4,
                               ),
                         ),
-                        Column(
-                          children: [
-                            wrapWithModel(
-                              model: _model.historyItemModel1,
-                              updateCallback: () => safeSetState(() {}),
-                              child: HistoryItemWidget(
-                                band: 'Excellent',
-                                date: 'Yesterday, 4:30 PM',
-                                icon: Icon(
-                                  Icons.directions_run_rounded,
-                                  color: FlutterFlowTheme.of(context)
-                                      .onPrimaryContainer,
-                                  size: 24.0,
-                                ),
-                                score: '42%',
-                                title: 'HIIT Sprint',
-                              ),
-                            ),
-                            wrapWithModel(
-                              model: _model.historyItemModel2,
-                              updateCallback: () => safeSetState(() {}),
-                              child: HistoryItemWidget(
-                                band: 'Good',
-                                date: 'Oct 24, 2023',
-                                icon: Icon(
-                                  Icons.directions_bike_rounded,
-                                  color: FlutterFlowTheme.of(context)
-                                      .onPrimaryContainer,
-                                  size: 24.0,
-                                ),
-                                score: '31%',
-                                title: 'Cycling Power',
-                              ),
-                            ),
-                            wrapWithModel(
-                              model: _model.historyItemModel3,
-                              updateCallback: () => safeSetState(() {}),
-                              child: HistoryItemWidget(
-                                band: 'Average',
-                                date: 'Oct 20, 2023',
-                                icon: Icon(
-                                  Icons.self_improvement_rounded,
-                                  color: FlutterFlowTheme.of(context)
-                                      .onPrimaryContainer,
-                                  size: 24.0,
-                                ),
-                                score: '22%',
-                                title: 'Steady State',
-                              ),
-                            ),
-                          ],
-                        ),
                         InkWell(
                           onTap: () {
                             context.goNamed(HistoryLogWidget.routeName);
@@ -599,7 +665,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                               iconEndPresent: false,
                               variant: 'outline',
                               size: 'medium',
-                              fullWidth: false,
+                              fullWidth: true,
                               loading: false,
                               disabled: false,
                             ),
@@ -610,28 +676,29 @@ class _DashboardWidgetState extends State<DashboardWidget> {
 
                     const SizedBox(height: 20.0),
 
-// 🔥 LOGOUT BUTTON
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-  child: ElevatedButton(
-    onPressed: () async {
-      await FirebaseAuth.instance.signOut();
-            context.go('/');
-    },
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.redAccent,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-    ),
-    child: const Text(
-      'Log Out',
-      style: TextStyle(color: Colors.white),
-    ),
-  ),
-),
+                    /// Logout
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (!context.mounted) return;
+                          context.go('/');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text(
+                          'Log Out',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
                   ].divide(const SizedBox(height: 32.0)),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

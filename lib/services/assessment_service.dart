@@ -17,6 +17,8 @@ class AssessmentService {
     required String recoveryPattern,
     int? duringEffortRating,
     int? postWorkoutFeelingRating,
+    String? recoveryPatternDescription,
+    String? recoveryPatternAdvice,
     String? notes,
   }) async {
     final user = _auth.currentUser;
@@ -44,6 +46,8 @@ class AssessmentService {
       'earlyRecoveryAssessment': earlyRecoveryAssessment,
       'overallRecoveryAssessment': overallRecoveryAssessment,
       'recoveryPattern': recoveryPattern,
+      'recoveryPatternDescription': recoveryPatternDescription,
+      'recoveryPatternAdvice': recoveryPatternAdvice,
 
       'duringEffortRating': duringEffortRating,
       'postWorkoutFeelingRating': postWorkoutFeelingRating,
