@@ -97,7 +97,7 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Vigor',
+                        'Pulse Recovery',
                         style:
                             FlutterFlowTheme.of(context).titleMedium.override(
                                   font: GoogleFonts.dmSans(

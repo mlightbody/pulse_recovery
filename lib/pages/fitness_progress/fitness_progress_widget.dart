@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/services/trend_service.dart';
+import '/utils/recovery_decision_engine.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   RecoveryTrendSummary? _trendSummary;
+  PersonalisedRecoveryAdvice? _advice;
   bool _isLoadingTrendSummary = true;
 
   @override
@@ -45,11 +47,13 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
   Future<void> _loadTrendSummary() async {
     try {
       final summary = await TrendService().getRecoveryTrendSummary();
+      final advice = buildPersonalisedRecoveryAdvice(trend: summary);
 
       if (!mounted) return;
 
       setState(() {
         _trendSummary = summary;
+        _advice = advice;
         _isLoadingTrendSummary = false;
       });
     } catch (_) {
@@ -429,15 +433,16 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
     );
   }
 
-  Widget _insightPanel() {
+  Widget _decisionPanel() {
     if (_isLoadingTrendSummary) {
-      return _emptyChartCard('Loading trend insight...');
+      return _emptyChartCard('Loading personalised recovery advice...');
     }
 
     final summary = _trendSummary;
+    final advice = _advice;
 
-    if (summary == null) {
-      return _emptyChartCard('Trend insight is not available yet.');
+    if (summary == null || advice == null) {
+      return _emptyChartCard('Personalised advice is not available yet.');
     }
 
     final gapChange = summary.recoveryGapChangeVsRecentAverage;
@@ -458,15 +463,15 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            summary.trendLabel,
-            style: FlutterFlowTheme.of(context).titleMedium.override(
-                  font: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+            advice.patternTitle,
+            style: FlutterFlowTheme.of(context).titleLarge.override(
+                  font: GoogleFonts.nunito(fontWeight: FontWeight.w800),
                   color: FlutterFlowTheme.of(context).primaryText,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
-            summary.dashboardSummary,
+            advice.whatItMeans,
             style: FlutterFlowTheme.of(context).bodyMedium.override(
                   font: GoogleFonts.dmSans(),
                   color: FlutterFlowTheme.of(context).secondaryText,
@@ -474,6 +479,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
                 ),
           ),
           const SizedBox(height: 18),
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -529,7 +535,43 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
               ],
             ),
           ),
+
           const SizedBox(height: 18),
+
+          Text(
+            'Possible reasons',
+            style: FlutterFlowTheme.of(context).labelLarge.override(
+                  font: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+                ),
+          ),
+          const SizedBox(height: 8),
+          ...advice.possibleReasons.map(
+            (reason) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ',
+                    style: FlutterFlowTheme.of(context).bodyMedium,
+                  ),
+                  Expanded(
+                    child: Text(
+                      reason,
+                      style: FlutterFlowTheme.of(context).bodyMedium.override(
+                            font: GoogleFonts.dmSans(),
+                            color: FlutterFlowTheme.of(context).secondaryText,
+                            lineHeight: 1.45,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
           Text(
             'Coaching focus',
             style: FlutterFlowTheme.of(context).labelLarge.override(
@@ -538,14 +580,16 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
           ),
           const SizedBox(height: 6),
           Text(
-            summary.coachingFocus,
+            advice.coachingFocus,
             style: FlutterFlowTheme.of(context).bodyMedium.override(
                   font: GoogleFonts.dmSans(),
                   color: FlutterFlowTheme.of(context).secondaryText,
                   lineHeight: 1.45,
                 ),
           ),
+
           const SizedBox(height: 16),
+
           Text(
             'What to track next',
             style: FlutterFlowTheme.of(context).labelLarge.override(
@@ -554,11 +598,21 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
           ),
           const SizedBox(height: 6),
           Text(
-            summary.whatToTrackNext,
+            advice.whatToTrackNext,
             style: FlutterFlowTheme.of(context).bodyMedium.override(
                   font: GoogleFonts.dmSans(),
                   color: FlutterFlowTheme.of(context).secondaryText,
                   lineHeight: 1.45,
+                ),
+          ),
+
+          const SizedBox(height: 16),
+
+          Text(
+            advice.confidence,
+            style: FlutterFlowTheme.of(context).bodySmall.override(
+                  font: GoogleFonts.dmSans(fontStyle: FontStyle.italic),
+                  color: FlutterFlowTheme.of(context).secondaryText,
                 ),
           ),
         ],
@@ -664,7 +718,9 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
                           _menuButton(),
                         ],
                       ),
+
                       const SizedBox(height: 24),
+
                       Row(
                         children: [
                           _summaryCard(
@@ -686,27 +742,34 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 28),
+
                       _sectionTitle(
                         '120-second recovery %',
                         'Y-axis shows percentage drop from peak HR.',
                       ),
                       const SizedBox(height: 12),
                       _recoveryPercentChart(docs),
+
                       const SizedBox(height: 28),
+
                       _sectionTitle(
                         'Cumulative recovery: 60s vs 120s',
                         'Shows percentage drop from peak HR by 60 and 120 seconds.',
                       ),
                       const SizedBox(height: 12),
                       _hrrChart(docs),
+
                       const SizedBox(height: 28),
+
                       _sectionTitle(
-                        'Trend insight',
-                        'A plain-English summary based on recent assessments.',
+                        'Personalised recovery insight',
+                        'Decision-engine feedback based on your recent trend.',
                       ),
                       const SizedBox(height: 12),
-                      _insightPanel(),
+                      _decisionPanel(),
+
                       const SizedBox(height: 32),
                     ],
                   ),

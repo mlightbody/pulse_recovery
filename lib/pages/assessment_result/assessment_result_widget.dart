@@ -1,16 +1,12 @@
-import '/components/band_indicator/band_indicator_widget.dart';
 import '/components/button/button_widget.dart';
-import '/components/pie_chart/pie_chart_widget.dart';
-import '/components/result_stat/result_stat_widget.dart';
-import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
-import '/utils/recovery_pattern.dart';
 import '/utils/recovery_decision_engine.dart';
-import 'dart:ui';
+import '/utils/recovery_pattern.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'assessment_result_model.dart';
 export 'assessment_result_model.dart';
 
@@ -45,7 +41,6 @@ class AssessmentResultWidget extends StatefulWidget {
 
 class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
   late AssessmentResultModel _model;
-
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -62,17 +57,11 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
 
   void _navigateFromMenu(String value) {
     switch (value) {
-      case 'home':
-        context.goNamed(OnboardingWidget.routeName);
-        break;
       case 'dashboard':
         context.goNamed(DashboardWidget.routeName);
         break;
       case 'new':
         context.goNamed(NewAssessmentWidget.routeName);
-        break;
-      case 'result':
-        context.goNamed(AssessmentResultWidget.routeName);
         break;
       case 'progress':
         context.goNamed(FitnessProgressWidget.routeName);
@@ -86,64 +75,258 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
     }
   }
 
-  bool _isActive(String band, String classification) =>
-      band.toLowerCase() == classification.toLowerCase();
+  PopupMenuButton<String> _menuButton() {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.menu_rounded),
+      onSelected: _navigateFromMenu,
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
+        PopupMenuItem(value: 'new', child: Text('New Assessment')),
+        PopupMenuItem(value: 'progress', child: Text('Fitness Progress')),
+        PopupMenuItem(value: 'history', child: Text('History Log')),
+        PopupMenuItem(value: 'settings', child: Text('Profile Settings')),
+      ],
+    );
+  }
 
-  Widget _smallStat({
+  Color _bandColor(String band) {
+    switch (band.toLowerCase()) {
+      case 'excellent':
+        return FlutterFlowTheme.of(context).success;
+      case 'good':
+        return FlutterFlowTheme.of(context).primary;
+      case 'average':
+      case 'fair':
+      case 'moderate':
+        return FlutterFlowTheme.of(context).secondary;
+      case 'poor':
+      case 'low':
+        return FlutterFlowTheme.of(context).error;
+      default:
+        return FlutterFlowTheme.of(context).secondaryText;
+    }
+  }
+
+  Widget _statCard({
     required String label,
     required String value,
     required String subtitle,
+    IconData? icon,
   }) {
     return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).primaryBackground,
-        borderRadius: BorderRadius.circular(20.0),
+        color: FlutterFlowTheme.of(context).secondaryBackground,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: FlutterFlowTheme.of(context).alternate,
-          width: 1.0,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: FlutterFlowTheme.of(context).labelMedium.override(
-                    font: GoogleFonts.dmSans(),
-                    color: FlutterFlowTheme.of(context).secondaryText,
-                    letterSpacing: 0.0,
-                    lineHeight: 1.3,
-                  ),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(
+              icon,
+              color: FlutterFlowTheme.of(context).primary,
+              size: 24,
             ),
-            const SizedBox(height: 4.0),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: FlutterFlowTheme.of(context).titleLarge.override(
-                    font: GoogleFonts.nunito(fontWeight: FontWeight.bold),
-                    color: FlutterFlowTheme.of(context).primaryText,
-                    letterSpacing: 0.0,
-                    lineHeight: 1.25,
-                  ),
-            ),
-            const SizedBox(height: 4.0),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: FlutterFlowTheme.of(context).bodySmall.override(
-                    font: GoogleFonts.dmSans(),
-                    color: FlutterFlowTheme.of(context).secondaryText,
-                    letterSpacing: 0.0,
-                    lineHeight: 1.5,
-                  ),
-            ),
+            const SizedBox(width: 14),
           ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: FlutterFlowTheme.of(context).bodySmall.override(
+                        font: GoogleFonts.dmSans(),
+                        color: FlutterFlowTheme.of(context).secondaryText,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: FlutterFlowTheme.of(context).titleLarge.override(
+                        font: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        color: FlutterFlowTheme.of(context).primaryText,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: FlutterFlowTheme.of(context).bodySmall.override(
+                        font: GoogleFonts.dmSans(),
+                        color: FlutterFlowTheme.of(context).secondaryText,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionCard({
+    required String title,
+    required String body,
+    IconData icon = Icons.info_outline_rounded,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: FlutterFlowTheme.of(context).secondaryBackground,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: FlutterFlowTheme.of(context).alternate,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: FlutterFlowTheme.of(context).primary,
+            size: 24,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: FlutterFlowTheme.of(context).labelLarge.override(
+                        font: GoogleFonts.dmSans(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        color: FlutterFlowTheme.of(context).primaryText,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  body,
+                  style: FlutterFlowTheme.of(context).bodyMedium.override(
+                        font: GoogleFonts.dmSans(),
+                        color: FlutterFlowTheme.of(context).secondaryText,
+                        lineHeight: 1.45,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _coachingCard(RecoveryDecisionResult decision, int rpe, int feelingAfter) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: FlutterFlowTheme.of(context).primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: FlutterFlowTheme.of(context).primary.withOpacity(0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology_alt_rounded,
+                color: FlutterFlowTheme.of(context).primary,
+                size: 26,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Coaching recommendation',
+                  style: FlutterFlowTheme.of(context).titleMedium.override(
+                        font: GoogleFonts.dmSans(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        color: FlutterFlowTheme.of(context).primaryText,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            decision.title,
+            style: FlutterFlowTheme.of(context).titleLarge.override(
+                  font: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w800,
+                  ),
+                  color: FlutterFlowTheme.of(context).primary,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            decision.summary,
+            style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  font: GoogleFonts.dmSans(),
+                  color: FlutterFlowTheme.of(context).secondaryText,
+                  lineHeight: 1.45,
+                ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            decision.recommendation,
+            style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  font: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  color: FlutterFlowTheme.of(context).primaryText,
+                  lineHeight: 1.45,
+                ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Effort: $rpe/10 • Felt after: $feelingAfter/10',
+            style: FlutterFlowTheme.of(context).bodySmall.override(
+                  font: GoogleFonts.dmSans(),
+                  color: FlutterFlowTheme.of(context).secondaryText,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required VoidCallback onTap,
+    required String variant,
+    IconData? icon,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: wrapWithModel(
+        model: _model.buttonModel1,
+        updateCallback: () => safeSetState(() {}),
+        child: ButtonWidget(
+          content: label,
+          icon: icon == null
+              ? null
+              : Icon(
+                  icon,
+                  color: FlutterFlowTheme.of(context).onPrimary,
+                  size: 16,
+                ),
+          iconPresent: icon != null,
+          iconEndPresent: false,
+          variant: variant,
+          size: 'medium',
+          fullWidth: true,
+          loading: false,
+          disabled: false,
         ),
       ),
     );
@@ -151,19 +334,24 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final peakHr = widget.peakHr ?? 164;
-    final hr60 = widget.hr60 ?? 130;
-    final hr120 = widget.hr120 ?? 115;
-    final recoveryPercent120 = widget.recoveryPercent120 ?? 30.0;
-    final earlyRecoveryAssessment = widget.earlyRecoveryAssessment ?? 'Good';
+    final peakHr = widget.peakHr ?? 0;
+    final hr60 = widget.hr60 ?? 0;
+    final hr120 = widget.hr120 ?? 0;
+    final recoveryPercent120 = widget.recoveryPercent120 ?? 0.0;
+    final earlyRecoveryAssessment = widget.earlyRecoveryAssessment ?? 'Unknown';
     final overallRecoveryAssessment =
-        widget.overallRecoveryAssessment ?? 'Good';
-
-    final rpe = widget.rpe ?? 6;
-    final feelingAfter = widget.feelingAfter ?? 7;
+        widget.overallRecoveryAssessment ?? 'Unknown';
+    final rpe = widget.rpe ?? 0;
+    final feelingAfter = widget.feelingAfter ?? 0;
 
     final hrr60 = peakHr - hr60;
     final hrr120 = peakHr - hr120;
+
+    final recoveryPattern = calculateRecoveryPattern(
+      peakHr: peakHr,
+      hr60: hr60,
+      hr120: hr120,
+    );
 
     final decision = assessRecoveryDecision(
       peakHr: peakHr,
@@ -173,25 +361,8 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
       feelingAfter: feelingAfter,
     );
 
-    final recoveryPattern = calculateRecoveryPattern(
-      peakHr: peakHr,
-      hr60: hr60,
-      hr120: hr120,
-    );
-
-    final drop1 = recoveryPattern.drop1;
-    final drop2 = recoveryPattern.drop2;
-    final recoveryPatternRatio = recoveryPattern.ratio;
-    final recoveryPatternLabel = recoveryPattern.label;
-    final recoveryPatternDescription = recoveryPattern.description;
-    final recoveryPatternAdvice = recoveryPattern.shortAdvice;
-
-    final ratioText = recoveryPatternRatio == null
-        ? 'not available'
-        : recoveryPatternRatio.toStringAsFixed(2);
-
-    final recoveryPercentRounded = recoveryPercent120.round().clamp(0, 100);
-    final remainingPercent = 100 - recoveryPercentRounded;
+    final overallColor = _bandColor(overallRecoveryAssessment);
+    final recoveryPercentText = '${recoveryPercent120.toStringAsFixed(1)}%';
 
     return GestureDetector(
       onTap: () {
@@ -201,244 +372,185 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        body: SingleChildScrollView(
-          primary: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.menu_rounded),
-                onSelected: _navigateFromMenu,
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'home', child: Text('Home')),
-                  PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
-                  PopupMenuItem(value: 'new', child: Text('New Assessment')),
-                  PopupMenuItem(
-                    value: 'result',
-                    child: Text('Assessment Result'),
-                  ),
-                  PopupMenuItem(
-                    value: 'progress',
-                    child: Text('Fitness Progress'),
-                  ),
-                  PopupMenuItem(value: 'history', child: Text('History Log')),
-                  PopupMenuItem(
-                    value: 'settings',
-                    child: Text('Profile Settings'),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        FlutterFlowIconButton(
-                          borderRadius: 8.0,
-                          buttonSize: 40.0,
-                          fillColor: Colors.transparent,
-                          icon: Icon(
-                            Icons.arrow_back_rounded,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            size: 24.0,
-                          ),
-                          onPressed: () {
-                            context.goNamed(NewAssessmentWidget.routeName);
-                          },
-                        ),
-                        Expanded(
-                          child: Text(
-                            'Assessment Result',
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: FlutterFlowTheme.of(context)
-                                .titleLarge
-                                .override(
-                                  font: GoogleFonts.dmSans(
-                                    fontWeight: FontWeight.bold,
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: () {
+                        context.goNamed(NewAssessmentWidget.routeName);
+                      },
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Assessment Result',
+                        textAlign: TextAlign.center,
+                        style:
+                            FlutterFlowTheme.of(context).headlineMedium.override(
+                                  font: GoogleFonts.nunito(
+                                    fontWeight: FontWeight.w800,
                                   ),
-                                  letterSpacing: 0.0,
-                                  lineHeight: 1.3,
                                 ),
-                          ),
-                        ),
-                        FlutterFlowIconButton(
-                          borderRadius: 8.0,
-                          buttonSize: 40.0,
-                          fillColor: Colors.transparent,
-                          icon: Icon(
-                            Icons.share_rounded,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            size: 24.0,
-                          ),
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32.0),
-
-                    // existing chart and stats remain unchanged...
-
-                    // INSERT THIS CARD AFTER YOUR EXISTING RECOVERY INSIGHT CARD
-                    Container(
-                      decoration: BoxDecoration(
-                        color:
-                            FlutterFlowTheme.of(context).secondaryBackground,
-                        borderRadius: BorderRadius.circular(24.0),
-                        border: Border.all(
-                          color: FlutterFlowTheme.of(context).alternate,
-                          width: 1.0,
-                        ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.psychology_alt_rounded,
-                              color: FlutterFlowTheme.of(context).primary,
-                              size: 28.0,
+                    ),
+                    _menuButton(),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: overallColor,
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '120-second recovery',
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              font: GoogleFonts.dmSans(),
+                              color: Colors.white.withOpacity(0.9),
                             ),
-                            const SizedBox(width: 16.0),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Coaching Recommendation',
-                                    style: FlutterFlowTheme.of(context)
-                                        .labelLarge
-                                        .override(
-                                          font: GoogleFonts.dmSans(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          color: FlutterFlowTheme.of(context)
-                                              .primaryText,
-                                          letterSpacing: 0.0,
-                                          lineHeight: 1.3,
-                                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        recoveryPercentText,
+                        style:
+                            FlutterFlowTheme.of(context).headlineLarge.override(
+                                  font: GoogleFonts.nunito(
+                                    fontWeight: FontWeight.w900,
                                   ),
-                                  const SizedBox(height: 8.0),
-                                  Text(
-                                    decision.title,
-                                    style: FlutterFlowTheme.of(context)
-                                        .titleMedium
-                                        .override(
-                                          font: GoogleFonts.nunito(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                          color:
-                                              FlutterFlowTheme.of(context)
-                                                  .primary,
-                                          letterSpacing: 0.0,
-                                          lineHeight: 1.3,
-                                        ),
+                                  color: Colors.white,
+                                  fontSize: 58,
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          overallRecoveryAssessment,
+                          style:
+                              FlutterFlowTheme.of(context).labelMedium.override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    color: Colors.white,
                                   ),
-                                  const SizedBox(height: 8.0),
-                                  Text(
-                                    decision.summary,
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodySmall
-                                        .override(
-                                          font: GoogleFonts.dmSans(),
-                                          color: FlutterFlowTheme.of(context)
-                                              .secondaryText,
-                                          letterSpacing: 0.0,
-                                          lineHeight: 1.5,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 12.0),
-                                  Text(
-                                    decision.recommendation,
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.dmSans(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          color: FlutterFlowTheme.of(context)
-                                              .primaryText,
-                                          letterSpacing: 0.0,
-                                          lineHeight: 1.5,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 16.0),
-                                  Text(
-                                    'RPE: $rpe/10 • Feeling after: $feelingAfter/10 • Recovery gap: ${decision.recoveryGap.toStringAsFixed(2)}',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodySmall
-                                        .override(
-                                          font: GoogleFonts.dmSans(),
-                                          color: FlutterFlowTheme.of(context)
-                                              .secondaryText,
-                                          letterSpacing: 0.0,
-                                          lineHeight: 1.5,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
 
-                    const SizedBox(height: 32.0),
+                const SizedBox(height: 24),
 
-                    InkWell(
-                      onTap: () {
-                        context.goNamed(FitnessProgressWidget.routeName);
-                      },
-                      borderRadius: BorderRadius.circular(24.0),
-                      child: wrapWithModel(
-                        model: _model.buttonModel1,
-                        updateCallback: () => safeSetState(() {}),
-                        child: ButtonWidget(
-                          content: 'View Progress History',
-                          icon: Icon(
-                            Icons.show_chart_rounded,
-                            color: FlutterFlowTheme.of(context).onSecondary,
-                            size: 16.0,
-                          ),
-                          iconPresent: true,
-                          iconEndPresent: false,
-                          variant: 'secondary',
-                          size: 'medium',
-                          fullWidth: false,
-                          loading: false,
-                          disabled: false,
-                        ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _statCard(
+                        label: '60s drop',
+                        value: '$hrr60 bpm',
+                        subtitle: earlyRecoveryAssessment,
+                        icon: Icons.timer_rounded,
                       ),
                     ),
-                    const SizedBox(height: 16.0),
-                    InkWell(
-                      onTap: () {
-                        context.goNamed(DashboardWidget.routeName);
-                      },
-                      borderRadius: BorderRadius.circular(24.0),
-                      child: wrapWithModel(
-                        model: _model.buttonModel2,
-                        updateCallback: () => safeSetState(() {}),
-                        child: ButtonWidget(
-                          content: 'Done',
-                          iconPresent: false,
-                          iconEndPresent: false,
-                          variant: 'primary',
-                          size: 'medium',
-                          fullWidth: false,
-                          loading: false,
-                          disabled: false,
-                        ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _statCard(
+                        label: '120s drop',
+                        value: '$hrr120 bpm',
+                        subtitle: overallRecoveryAssessment,
+                        icon: Icons.favorite_rounded,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 16),
+
+                _statCard(
+                  label: 'Heart-rate readings',
+                  value: '$peakHr → $hr60 → $hr120 bpm',
+                  subtitle: 'Peak, 60 seconds, 120 seconds',
+                  icon: Icons.monitor_heart_rounded,
+                ),
+
+                const SizedBox(height: 24),
+
+                _sectionCard(
+                  title: 'Recovery pattern',
+                  body:
+                      '${recoveryPattern.label}\n\n${recoveryPattern.description}',
+                  icon: Icons.timeline_rounded,
+                ),
+
+                const SizedBox(height: 16),
+
+                _sectionCard(
+                  title: 'What this test suggests',
+                  body: recoveryPattern.shortAdvice,
+                  icon: Icons.lightbulb_outline_rounded,
+                ),
+
+                const SizedBox(height: 16),
+
+                _coachingCard(decision, rpe, feelingAfter),
+
+                const SizedBox(height: 24),
+
+                _sectionCard(
+                  title: 'Trend context',
+                  body:
+                      'This page explains the assessment you just completed. For personalised trend advice based on your wider history, use Fitness Progress.',
+                  icon: Icons.show_chart_rounded,
+                ),
+
+                const SizedBox(height: 24),
+
+                ElevatedButton.icon(
+                  onPressed: () {
+                    context.goNamed(FitnessProgressWidget.routeName);
+                  },
+                  icon: const Icon(Icons.show_chart_rounded),
+                  label: const Text('View Fitness Progress'),
+                ),
+
+                const SizedBox(height: 12),
+
+                ElevatedButton.icon(
+                  onPressed: () {
+                    context.goNamed(NewAssessmentWidget.routeName);
+                  },
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('New Assessment'),
+                ),
+
+                const SizedBox(height: 12),
+
+                TextButton(
+                  onPressed: () {
+                    context.goNamed(DashboardWidget.routeName);
+                  },
+                  child: const Text('Done'),
+                ),
+
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
