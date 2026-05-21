@@ -6,6 +6,9 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/utils/recovery_pattern.dart';
 import '/services/assessment_service.dart';
+import '/models/pending_recovery_session.dart';
+import '/services/recovery_assessment_service.dart';
+import '/services/recovery_session_import_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'new_assessment_model.dart';
@@ -33,10 +36,31 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   final rpeController = TextEditingController();
   final feelingAfterController = TextEditingController();
 
+  final RecoverySessionImportService _importService =
+      RecoverySessionImportService();
+  final RecoveryAssessmentService _assessmentService =
+      RecoveryAssessmentService();
+
+  List<PendingRecoverySession> _pendingSessions = [];
+  bool _loadingWatchSessions = true;
+  String? _selectedSource;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => NewAssessmentModel());
+    _loadPendingSessions();
+  }
+
+  Future<void> _loadPendingSessions() async {
+    final sessions = await _importService.getPendingSessions();
+
+    if (!mounted) return;
+
+    setState(() {
+      _pendingSessions = sessions;
+      _loadingWatchSessions = false;
+    });
   }
 
   @override
@@ -48,6 +72,32 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     feelingAfterController.dispose();
     _model.dispose();
     super.dispose();
+  }
+
+  void _useWatchSession(PendingRecoverySession session) {
+    if (!_assessmentService.canCreateAssessmentFromSession(session)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This watch session does not contain enough data.'),
+        ),
+      );
+      return;
+    }
+
+    final values = _assessmentService.extractManualAssessmentValues(session);
+
+    setState(() {
+      peakHrController.text = values['peakHr'].toString();
+      hr60Controller.text = values['hr60'].toString();
+      hr120Controller.text = values['hr120'].toString();
+      _selectedSource = session.source;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${session.source} values added. Now complete effort and feeling.'),
+      ),
+    );
   }
 
   String _earlyRecoveryAssessmentFor(int hrr60) {
@@ -144,7 +194,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         recoveryPatternAdvice: recoveryPattern.shortAdvice,
         duringEffortRating: rpe,
         postWorkoutFeelingRating: feelingAfter,
-        notes: null,
+        notes: _selectedSource == null ? null : 'Source: $_selectedSource',
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -286,6 +336,94 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     );
   }
 
+  Widget _watchSessionSection() {
+    if (_loadingWatchSessions) {
+      return Container(
+        decoration: BoxDecoration(
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          borderRadius: BorderRadius.circular(40.0),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_pendingSessions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final session = _pendingSessions.first;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: FlutterFlowTheme.of(context).secondaryBackground,
+        borderRadius: BorderRadius.circular(40.0),
+        border: Border.all(
+          color: FlutterFlowTheme.of(context).primary,
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Recent Watch Session Found',
+              style: FlutterFlowTheme.of(context).labelLarge.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                    color: FlutterFlowTheme.of(context).primaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.3,
+                  ),
+            ),
+            const SizedBox(height: 8.0),
+            Text(
+              '${session.source} values can be used to fill the recovery fields below.',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(),
+                    color: FlutterFlowTheme.of(context).secondaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.55,
+                  ),
+            ),
+            const SizedBox(height: 16.0),
+            Text(
+              'Peak HR: ${session.peakHr ?? '-'}\n'
+              '60-second HR: ${session.hr60 ?? '-'}\n'
+              '120-second HR: ${session.hr120 ?? '-'}',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                    color: FlutterFlowTheme.of(context).primaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.55,
+                  ),
+            ),
+            const SizedBox(height: 20.0),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _useWatchSession(session),
+              child: ButtonWidget(
+                content: _selectedSource == session.source
+                    ? 'Watch Values Added'
+                    : 'Use Watch Session',
+                iconPresent: false,
+                iconEndPresent: false,
+                variant: 'primary',
+                size: 'large',
+                fullWidth: true,
+                loading: false,
+                disabled: false,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _inputSection() {
     return Container(
       decoration: BoxDecoration(
@@ -297,6 +435,18 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_selectedSource != null) ...[
+              Text(
+                'Using values from $_selectedSource',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      font: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                      color: FlutterFlowTheme.of(context).primary,
+                      letterSpacing: 0.0,
+                      lineHeight: 1.55,
+                    ),
+              ),
+              const SizedBox(height: 16.0),
+            ],
             Text(
               'Peak Heart Rate',
               style: FlutterFlowTheme.of(context).labelLarge.override(
@@ -582,12 +732,15 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                   child: StepHeaderWidget(
                     bg: FlutterFlowTheme.of(context).primaryContainer,
                     number: '3',
-                    subtitle: 'Enter your BPM readings',
+                    subtitle: 'Use a watch session or enter your BPM readings',
                     textColor: FlutterFlowTheme.of(context).onPrimaryContainer,
                     title: 'Recovery Data',
                   ),
                 ),
                 const SizedBox(height: 16.0),
+                _watchSessionSection(),
+                if (_pendingSessions.isNotEmpty || _loadingWatchSessions)
+                  const SizedBox(height: 16.0),
                 _inputSection(),
                 const SizedBox(height: 32.0),
                 StepHeaderWidget(
