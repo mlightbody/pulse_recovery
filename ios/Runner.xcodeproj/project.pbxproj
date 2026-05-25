@@ -17,15 +17,15 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A46DD294B1D6B3088721AB2A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9170E600E4192ED4D87BAF62 /* GoogleService-Info.plist */; };
-		DD39FE9E2FBF7C4B006DFC8E /* PulseRecoveryWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = DD39FE942FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DD9A2A392FC37E2B00EF4882 /* PulseRecoveryWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = DD9A2A2F2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		DD39FE9C2FBF7C4B006DFC8E /* PBXContainerItemProxy */ = {
+		DD9A2A372FC37E2B00EF4882 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = DD39FE932FBF7C4A006DFC8E;
+			remoteGlobalIDString = DD9A2A2E2FC37E2A00EF4882;
 			remoteInfo = "PulseRecoveryWatch Watch App";
 		};
 /* End PBXContainerItemProxy section */
@@ -47,7 +47,7 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				DD39FE9E2FBF7C4B006DFC8E /* PulseRecoveryWatch Watch App.app in Embed Watch Content */,
+				DD9A2A392FC37E2B00EF4882 /* PulseRecoveryWatch Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -74,11 +74,11 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A91862300BFA48D2A02DB45B /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
-		DD39FE942FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PulseRecoveryWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD9A2A2F2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PulseRecoveryWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		DD39FE952FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "PulseRecoveryWatch Watch App"; sourceTree = "<group>"; };
+		DD9A2A302FC37E2A00EF4882 /* PulseRecoveryWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "PulseRecoveryWatch Watch App"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,7 +90,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DD39FE912FBF7C4A006DFC8E /* Frameworks */ = {
+		DD9A2A2C2FC37E2A00EF4882 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -134,7 +134,7 @@
 			children = (
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
-				DD39FE952FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App */,
+				DD9A2A302FC37E2A00EF4882 /* PulseRecoveryWatch Watch App */,
 				97C146EF1CF9000F007C117D /* Products */,
 				6BC9B09BC308745FA225AE9C /* Pods */,
 				9170E600E4192ED4D87BAF62 /* GoogleService-Info.plist */,
@@ -146,7 +146,7 @@
 			isa = PBXGroup;
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
-				DD39FE942FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App.app */,
+				DD9A2A2F2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -188,31 +188,33 @@
 			buildRules = (
 			);
 			dependencies = (
-				DD39FE9D2FBF7C4B006DFC8E /* PBXTargetDependency */,
+				DD9A2A382FC37E2B00EF4882 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
 		};
-		DD39FE932FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App */ = {
+		DD9A2A2E2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DD39FEA32FBF7C4B006DFC8E /* Build configuration list for PBXNativeTarget "PulseRecoveryWatch Watch App" */;
+			buildConfigurationList = DD9A2A3D2FC37E2B00EF4882 /* Build configuration list for PBXNativeTarget "PulseRecoveryWatch Watch App" */;
 			buildPhases = (
-				DD39FE902FBF7C4A006DFC8E /* Sources */,
-				DD39FE912FBF7C4A006DFC8E /* Frameworks */,
-				DD39FE922FBF7C4A006DFC8E /* Resources */,
+				DD9A2A2B2FC37E2A00EF4882 /* Sources */,
+				DD9A2A2C2FC37E2A00EF4882 /* Frameworks */,
+				DD9A2A2D2FC37E2A00EF4882 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				DD39FE952FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App */,
+				DD9A2A302FC37E2A00EF4882 /* PulseRecoveryWatch Watch App */,
 			);
 			name = "PulseRecoveryWatch Watch App";
+			packageProductDependencies = (
+			);
 			productName = "PulseRecoveryWatch Watch App";
-			productReference = DD39FE942FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App.app */;
+			productReference = DD9A2A2F2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -229,7 +231,7 @@
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
 					};
-					DD39FE932FBF7C4A006DFC8E = {
+					DD9A2A2E2FC37E2A00EF4882 = {
 						CreatedOnToolsVersion = 16.3;
 					};
 				};
@@ -248,7 +250,7 @@
 			projectRoot = "";
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
-				DD39FE932FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App */,
+				DD9A2A2E2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App */,
 			);
 		};
 /* End PBXProject section */
@@ -268,7 +270,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DD39FE922FBF7C4A006DFC8E /* Resources */ = {
+		DD9A2A2D2FC37E2A00EF4882 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -364,7 +366,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DD39FE902FBF7C4A006DFC8E /* Sources */ = {
+		DD9A2A2B2FC37E2A00EF4882 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -374,10 +376,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		DD39FE9D2FBF7C4B006DFC8E /* PBXTargetDependency */ = {
+		DD9A2A382FC37E2B00EF4882 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = DD39FE932FBF7C4A006DFC8E /* PulseRecoveryWatch Watch App */;
-			targetProxy = DD39FE9C2FBF7C4B006DFC8E /* PBXContainerItemProxy */;
+			target = DD9A2A2E2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App */;
+			targetProxy = DD9A2A372FC37E2B00EF4882 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -661,7 +663,7 @@
 			};
 			name = Release;
 		};
-		DD39FEA02FBF7C4B006DFC8E /* Debug */ = {
+		DD9A2A3A2FC37E2B00EF4882 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -680,11 +682,9 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "PulseRecoveryWatch-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = PulseRecoveryWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.mycompany.pulserecovery;
-				IPHONEOS_DEPLOYMENT_TARGET = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -706,7 +706,7 @@
 			};
 			name = Debug;
 		};
-		DD39FEA12FBF7C4B006DFC8E /* Release */ = {
+		DD9A2A3B2FC37E2B00EF4882 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -725,11 +725,9 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "PulseRecoveryWatch-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = PulseRecoveryWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.mycompany.pulserecovery;
-				IPHONEOS_DEPLOYMENT_TARGET = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -741,7 +739,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "watchsimulator watchos";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -750,7 +747,7 @@
 			};
 			name = Release;
 		};
-		DD39FEA22FBF7C4B006DFC8E /* Profile */ = {
+		DD9A2A3C2FC37E2B00EF4882 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -769,11 +766,9 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "PulseRecoveryWatch-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = PulseRecoveryWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.mycompany.pulserecovery;
-				IPHONEOS_DEPLOYMENT_TARGET = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -785,7 +780,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "watchsimulator watchos";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -817,12 +811,12 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DD39FEA32FBF7C4B006DFC8E /* Build configuration list for PBXNativeTarget "PulseRecoveryWatch Watch App" */ = {
+		DD9A2A3D2FC37E2B00EF4882 /* Build configuration list for PBXNativeTarget "PulseRecoveryWatch Watch App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				DD39FEA02FBF7C4B006DFC8E /* Debug */,
-				DD39FEA12FBF7C4B006DFC8E /* Release */,
-				DD39FEA22FBF7C4B006DFC8E /* Profile */,
+				DD9A2A3A2FC37E2B00EF4882 /* Debug */,
+				DD9A2A3B2FC37E2B00EF4882 /* Release */,
+				DD9A2A3C2FC37E2B00EF4882 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
