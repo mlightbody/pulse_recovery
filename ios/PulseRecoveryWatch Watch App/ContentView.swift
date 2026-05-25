@@ -1,24 +1,46 @@
-//
-//  ContentView.swift
-//  PulseRecoveryWatch Watch App
-//
-//  Created by Malcolm Lightbody on 24/05/2026.
-//
-
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    @StateObject private var heartRateManager = LiveHeartRateManager()
 
-#Preview {
-    ContentView()
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                Text("Pulse Recovery")
+                    .font(.headline)
+
+                Text(heartRateManager.heartRateText)
+                    .font(.title2)
+                    .bold()
+
+                Text(heartRateManager.statusMessage)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+
+                Text("Samples: \(heartRateManager.sampleCount)")
+                    .font(.caption2)
+
+                Text("Button taps: \(heartRateManager.buttonTapCount)")
+                    .font(.caption2)
+
+                Button {
+                    heartRateManager.buttonPressed()
+                } label: {
+                    Text(heartRateManager.buttonTitle)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(heartRateManager.debugMessages, id: \.self) { message in
+                        Text(message)
+                            .font(.system(size: 9))
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding()
+        }
+    }
 }
