@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var heartRateManager = LiveHeartRateManager()
+    @StateObject private var manager = LiveHeartRateManager()
 
     var body: some View {
         ScrollView {
@@ -9,30 +9,43 @@ struct ContentView: View {
                 Text("Pulse Recovery")
                     .font(.headline)
 
-                Text(heartRateManager.heartRateText)
+                Text(manager.heartRateText)
                     .font(.title2)
                     .bold()
 
-                Text(heartRateManager.statusMessage)
+                Text(manager.statusMessage)
                     .font(.caption)
                     .multilineTextAlignment(.center)
 
-                Text("Samples: \(heartRateManager.sampleCount)")
-                    .font(.caption2)
+                if manager.mode == .recoveryRecording {
+                    Text("Recovery: \(manager.recoveryElapsedSeconds)s / 120s")
+                        .font(.caption2)
+                }
 
-                Text("Button taps: \(heartRateManager.buttonTapCount)")
+                if manager.hasRecoveryResult {
+                    VStack(spacing: 4) {
+                        Text("End HR: \(manager.endHrText)")
+                        Text("60s HR: \(manager.hr60Text)")
+                        Text("120s HR: \(manager.hr120Text)")
+                        Text("Samples: \(manager.sampleCount)")
+                    }
                     .font(.caption2)
+                } else {
+                    Text("Samples: \(manager.sampleCount)")
+                        .font(.caption2)
+                }
 
                 Button {
-                    heartRateManager.buttonPressed()
+                    manager.primaryButtonPressed()
                 } label: {
-                    Text(heartRateManager.buttonTitle)
+                    Text(manager.buttonTitle)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(manager.isButtonDisabled)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    ForEach(heartRateManager.debugMessages, id: \.self) { message in
+                    ForEach(manager.debugMessages, id: \.self) { message in
                         Text(message)
                             .font(.system(size: 9))
                             .multilineTextAlignment(.leading)
