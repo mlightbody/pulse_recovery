@@ -18,6 +18,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A46DD294B1D6B3088721AB2A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9170E600E4192ED4D87BAF62 /* GoogleService-Info.plist */; };
 		DD9A2A392FC37E2B00EF4882 /* PulseRecoveryWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = DD9A2A2F2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DD9BB5DC2FC89A0F00ACE952 /* WatchSessionReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9BB5DB2FC89A0300ACE952 /* WatchSessionReceiver.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A91862300BFA48D2A02DB45B /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		DD9A2A2F2FC37E2A00EF4882 /* PulseRecoveryWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PulseRecoveryWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD9BB5DB2FC89A0300ACE952 /* WatchSessionReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionReceiver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -164,6 +166,7 @@
 		97C146F01CF9000F007C117D /* Runner */ = {
 			isa = PBXGroup;
 			children = (
+				DD9BB5DB2FC89A0300ACE952 /* WatchSessionReceiver.swift */,
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
@@ -367,6 +370,7 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
+				DD9BB5DC2FC89A0F00ACE952 /* WatchSessionReceiver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

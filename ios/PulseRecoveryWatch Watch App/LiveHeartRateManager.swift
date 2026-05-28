@@ -2,16 +2,21 @@ import Foundation
 import HealthKit
 import SwiftUI
 import WatchKit
+import WatchConnectivity
 
 final class LiveHeartRateManager: NSObject,
                                   ObservableObject,
                                   HKWorkoutSessionDelegate,
-                                  HKLiveWorkoutBuilderDelegate {
+                                  HKLiveWorkoutBuilderDelegate,
+                                  WCSessionDelegate {
 
     enum Mode {
         case idle
         case workoutActive
         case recoveryRecording
+        case sending
+        case sent
+        case queued
         case complete
         case error
     }
@@ -45,6 +50,14 @@ final class LiveHeartRateManager: NSObject,
     override init() {
         super.init()
         addDebug("Manager initialised")
+
+        if WCSession.isSupported() {
+            WCSession.default.delegate = self
+            WCSession.default.activate()
+            addDebug("WCSession activating")
+        } else {
+            addDebug("WCSession unsupported")
+        }
     }
 
     var heartRateText: String {
@@ -57,17 +70,19 @@ final class LiveHeartRateManager: NSObject,
 
     var buttonTitle: String {
         switch mode {
-        case .idle, .complete, .error:
+        case .idle, .complete, .sent, .queued, .error:
             return "Start Workout"
         case .workoutActive:
             return "End Workout"
         case .recoveryRecording:
             return "Recording..."
+        case .sending:
+            return "Sending..."
         }
     }
 
     var isButtonDisabled: Bool {
-        mode == .recoveryRecording
+        mode == .recoveryRecording || mode == .sending
     }
 
     var hasRecoveryResult: Bool {
@@ -90,7 +105,7 @@ final class LiveHeartRateManager: NSObject,
         WKInterfaceDevice.current().play(.click)
 
         switch mode {
-        case .idle, .complete, .error:
+        case .idle, .complete, .sent, .queued, .error:
             addDebug("Start pressed")
             requestPermissionAndStartWorkout()
 
@@ -98,7 +113,7 @@ final class LiveHeartRateManager: NSObject,
             addDebug("End workout pressed")
             beginRecoveryRecording()
 
-        case .recoveryRecording:
+        case .recoveryRecording, .sending:
             break
         }
     }
@@ -121,28 +136,71 @@ final class LiveHeartRateManager: NSObject,
         }
 
         let workoutType = HKObjectType.workoutType()
+        let workoutStatus = healthStore.authorizationStatus(for: workoutType)
 
-        statusMessage = "Requesting Health permission..."
-        addDebug("Requesting Health permission")
+        addDebug("Workout auth status: \(workoutStatus.rawValue)")
 
-        healthStore.requestAuthorization(
-            toShare: [workoutType],
-            read: [heartRateType, workoutType]
-        ) { success, error in
-            DispatchQueue.main.async {
-                if success {
-                    self.addDebug("Permission processed")
-                    self.startWorkout()
-                } else {
-                    self.statusMessage = "Health permission failed"
-                    self.mode = .error
-                    self.addDebug("Permission failed")
+        switch workoutStatus {
+        case .sharingAuthorized:
+            statusMessage = "Health permission already granted"
+            addDebug("Workout permission already granted")
+            startWorkout()
+            return
+
+        case .sharingDenied:
+            statusMessage = "Workout permission denied"
+            addDebug("Workout permission denied")
+            mode = .error
+            return
+
+        case .notDetermined:
+            statusMessage = "Requesting Health permission..."
+            addDebug("Requesting Health permission")
+
+            let requestStartedAt = Date()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+                if self.statusMessage == "Requesting Health permission..." {
+                    let elapsed = Int(Date().timeIntervalSince(requestStartedAt))
+                    self.statusMessage = "Still waiting for Health permission"
+                    self.addDebug("Health request timeout after \(elapsed)s")
+                }
+            }
+
+            healthStore.requestAuthorization(
+                toShare: [workoutType],
+                read: [heartRateType]
+            ) { success, error in
+                DispatchQueue.main.async {
+                    self.addDebug("Health permission callback received")
+                    self.addDebug("Request success: \(success)")
 
                     if let error {
+                        self.statusMessage = "Health permission error"
                         self.addDebug("Permission error: \(error.localizedDescription)")
+                        self.mode = .error
+                        return
+                    }
+
+                    let newWorkoutStatus = self.healthStore.authorizationStatus(for: workoutType)
+                    self.addDebug("New workout auth: \(newWorkoutStatus.rawValue)")
+
+                    if newWorkoutStatus == .sharingAuthorized {
+                        self.statusMessage = "Health permission granted"
+                        self.addDebug("Starting workout after permission")
+                        self.startWorkout()
+                    } else {
+                        self.statusMessage = "Workout permission not granted"
+                        self.addDebug("Workout permission not granted")
+                        self.mode = .error
                     }
                 }
             }
+
+        @unknown default:
+            statusMessage = "Unknown Health permission state"
+            addDebug("Unknown workout auth status")
+            mode = .error
         }
     }
 
@@ -261,11 +319,90 @@ final class LiveHeartRateManager: NSObject,
     }
 
     private func finishRecoverySession() {
-        mode = .complete
-        statusMessage = "Recovery complete"
+        mode = .sending
+        statusMessage = "Sending recovery data..."
         addDebug("Recovery complete")
         addDebug("Total samples: \(allSamples.count)")
+
+        let payload = buildRecoveryPayload()
+        sendPayloadToPhone(payload)
+
         endHealthKitWorkout()
+    }
+
+    private func buildRecoveryPayload() -> [String: Any] {
+        let now = Date()
+        let sessionId = UUID().uuidString
+
+        let fallbackHr = currentHeartRate ?? endHr ?? 0
+
+        let samplePayload: [[String: Any]] = allSamples.map { sample in
+            [
+                "timestamp": sample.timestamp.timeIntervalSince1970,
+                "hr": Int(sample.bpm.rounded()),
+                "phase": sample.phase
+            ]
+        }
+
+        return [
+            // Keep this for compatibility with the current iPhone receiver.
+            "type": "fakeRecoverySession",
+
+            "source": "apple_watch_real_hr",
+            "sessionId": sessionId,
+            "timestamp": now.timeIntervalSince1970,
+
+            "peakHr": Int((endHr ?? fallbackHr).rounded()),
+            "endHr": Int((endHr ?? fallbackHr).rounded()),
+            "hr60": Int((hr60 ?? currentHeartRate ?? fallbackHr).rounded()),
+            "hr120": Int((hr120 ?? currentHeartRate ?? fallbackHr).rounded()),
+
+            "workoutStartTime": workoutStartTime?.timeIntervalSince1970 ?? now.timeIntervalSince1970,
+            "recoveryStartTime": recoveryStartTime?.timeIntervalSince1970 ?? now.timeIntervalSince1970,
+
+            "sampleCount": samplePayload.count,
+            "samples": samplePayload
+        ]
+    }
+
+    private func sendPayloadToPhone(_ payload: [String: Any]) {
+        guard WCSession.isSupported() else {
+            mode = .queued
+            statusMessage = "WatchConnectivity unavailable"
+            addDebug("WC unsupported")
+            return
+        }
+
+        let session = WCSession.default
+
+        guard session.activationState == .activated else {
+            session.transferUserInfo(payload)
+            mode = .queued
+            statusMessage = "Saved on Watch. Will send later."
+            addDebug("WC not activated, queued")
+            return
+        }
+
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil) { error in
+                DispatchQueue.main.async {
+                    session.transferUserInfo(payload)
+                    self.mode = .queued
+                    self.statusMessage = "Phone unavailable. Saved for later."
+                    self.addDebug("sendMessage failed")
+                    self.addDebug(error.localizedDescription)
+                }
+            }
+
+            mode = .sent
+            statusMessage = "Sent to iPhone"
+            addDebug("Sent to iPhone")
+        } else {
+            session.transferUserInfo(payload)
+            mode = .queued
+            statusMessage = "Saved on Watch. Will send later."
+            addDebug("Phone not reachable, queued")
+        }
     }
 
     private func endHealthKitWorkout() {
@@ -378,6 +515,25 @@ final class LiveHeartRateManager: NSObject,
         }
     }
 
+    // MARK: - WCSessionDelegate
+
+    func session(
+        _ session: WCSession,
+        activationDidCompleteWith activationState: WCSessionActivationState,
+        error: Error?
+    ) {
+        DispatchQueue.main.async {
+            if let error {
+                self.addDebug("WC activation failed")
+                self.addDebug(error.localizedDescription)
+            } else {
+                self.addDebug("WC activated")
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
     private func formatHr(_ hr: Double?) -> String {
         if let hr {
             return "\(Int(hr.rounded())) bpm"
@@ -389,6 +545,8 @@ final class LiveHeartRateManager: NSObject,
     private func addDebug(_ message: String) {
         let timestamp = Self.shortTimeString()
         let line = "\(timestamp) \(message)"
+
+        print(line)
 
         if Thread.isMainThread {
             debugMessages.insert(line, at: 0)

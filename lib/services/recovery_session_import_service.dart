@@ -1,54 +1,54 @@
 import '../models/heart_rate_sample.dart';
 import '../models/pending_recovery_session.dart';
+import 'watch_session_service.dart';
 
 class RecoverySessionImportService {
   Future<List<PendingRecoverySession>> getPendingSessions() async {
-    // Later this will check Apple Watch / HealthKit / Health Connect.
-    // For now it returns a fake watch session so we can build the UI safely.
-    return [_fakeWatchSession()];
+    // Pull the latest session saved by the native iPhone WatchConnectivity bridge.
+    await WatchSessionService.instance.refreshLatestSession();
+
+    final watchSession = WatchSessionService.instance.latestSession.value;
+
+    if (watchSession == null) {
+      return [];
+    }
+
+    return [_fromWatchSession(watchSession)];
   }
 
-  PendingRecoverySession _fakeWatchSession() {
-    final now = DateTime.now();
-    final workoutStarted = now.subtract(const Duration(minutes: 45));
-    final recoveryStarted = now.subtract(const Duration(minutes: 8));
+  PendingRecoverySession _fromWatchSession(WatchRecoverySession session) {
+    final detailedSamples = session.samples.map((sample) {
+      return HeartRateSample(
+        timestamp: sample.timestamp,
+        bpm: sample.hr,
+      );
+    }).toList();
 
-    final samples = <HeartRateSample>[
+    final recoveryStartedAt = session.recoveryStartTime ?? session.timestamp;
+
+    final fallbackSamples = <HeartRateSample>[
       HeartRateSample(
-        timestamp: recoveryStarted.subtract(const Duration(seconds: 30)),
-        bpm: 168,
+        timestamp: recoveryStartedAt,
+        bpm: session.endHr,
       ),
       HeartRateSample(
-        timestamp: recoveryStarted,
-        bpm: 165,
+        timestamp: recoveryStartedAt.add(const Duration(seconds: 60)),
+        bpm: session.hr60,
       ),
       HeartRateSample(
-        timestamp: recoveryStarted.add(const Duration(seconds: 15)),
-        bpm: 148,
-      ),
-      HeartRateSample(
-        timestamp: recoveryStarted.add(const Duration(seconds: 30)),
-        bpm: 134,
-      ),
-      HeartRateSample(
-        timestamp: recoveryStarted.add(const Duration(seconds: 60)),
-        bpm: 112,
-      ),
-      HeartRateSample(
-        timestamp: recoveryStarted.add(const Duration(seconds: 90)),
-        bpm: 101,
-      ),
-      HeartRateSample(
-        timestamp: recoveryStarted.add(const Duration(seconds: 120)),
-        bpm: 92,
+        timestamp: recoveryStartedAt.add(const Duration(seconds: 120)),
+        bpm: session.hr120,
       ),
     ];
 
     return PendingRecoverySession(
-      id: 'fake-watch-session-001',
-      workoutStartedAt: workoutStarted,
-      recoveryStartedAt: recoveryStarted,
-      samples: samples,
+      id: session.sessionId.isNotEmpty
+          ? session.sessionId
+          : 'watch-session-${session.timestamp.millisecondsSinceEpoch}',
+      workoutStartedAt: session.workoutStartTime ??
+          recoveryStartedAt.subtract(const Duration(minutes: 5)),
+      recoveryStartedAt: recoveryStartedAt,
+      samples: detailedSamples.isNotEmpty ? detailedSamples : fallbackSamples,
       source: 'Apple Watch',
     );
   }
