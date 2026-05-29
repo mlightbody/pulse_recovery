@@ -9,6 +9,7 @@ import '/services/assessment_service.dart';
 import '/models/pending_recovery_session.dart';
 import '/services/recovery_assessment_service.dart';
 import '/services/recovery_session_import_service.dart';
+import '/services/watch_session_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'new_assessment_model.dart';
@@ -95,7 +96,9 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${session.source} values added. Now complete effort and feeling.'),
+        content: Text(
+          '${session.source} values added. Now complete effort and feeling.',
+        ),
       ),
     );
   }
@@ -196,6 +199,12 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         postWorkoutFeelingRating: feelingAfter,
         notes: _selectedSource == null ? null : 'Source: $_selectedSource',
       );
+
+      // If this assessment used imported Apple Watch data, clear the pending
+      // watch session only after the Firebase save has succeeded.
+      if (_selectedSource != null) {
+        await WatchSessionService.instance.clearLatestSession();
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -206,6 +215,13 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     }
 
     if (!mounted) return;
+
+    if (_selectedSource != null) {
+      setState(() {
+        _pendingSessions = [];
+        _selectedSource = null;
+      });
+    }
 
     context.goNamed(
       AssessmentResultWidget.routeName,
