@@ -5,6 +5,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/utils/recovery_pattern.dart';
+import '/utils/recovery_assessment_levels.dart';
 import '/services/assessment_service.dart';
 import '/models/pending_recovery_session.dart';
 import '/services/recovery_assessment_service.dart';
@@ -103,21 +104,6 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     );
   }
 
-  String _earlyRecoveryAssessmentFor(int hrr60) {
-    if (hrr60 < 12) return 'Low';
-    if (hrr60 < 20) return 'Moderate';
-    if (hrr60 < 30) return 'Good';
-    return 'Excellent';
-  }
-
-  String _overallRecoveryAssessmentFor(int hrr120) {
-    if (hrr120 < 22) return 'Poor';
-    if (hrr120 < 35) return 'Fair';
-    if (hrr120 < 45) return 'Average';
-    if (hrr120 < 60) return 'Good';
-    return 'Excellent';
-  }
-
   Future<void> _generateAssessment() async {
     final peakHr = int.tryParse(peakHrController.text.trim());
     final hr60 = int.tryParse(hr60Controller.text.trim());
@@ -173,8 +159,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     final hrr120 = peakHr - hr120;
     final recoveryPercent120 = (hrr120 / peakHr) * 100;
 
-    final earlyRecoveryAssessment = _earlyRecoveryAssessmentFor(hrr60);
-    final overallRecoveryAssessment = _overallRecoveryAssessmentFor(hrr120);
+    final earlyRecoveryAssessment = classifyEarlyRecovery(hrr60);
+    final overallRecoveryAssessment = classifyOverallRecovery(hrr120);
 
     final recoveryPattern = calculateRecoveryPattern(
       peakHr: peakHr,
@@ -200,8 +186,6 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         notes: _selectedSource == null ? null : 'Source: $_selectedSource',
       );
 
-      // If this assessment used imported Apple Watch data, clear the pending
-      // watch session only after the Firebase save has succeeded.
       if (_selectedSource != null) {
         await WatchSessionService.instance.clearLatestSession();
       }
@@ -222,6 +206,14 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         _selectedSource = null;
       });
     }
+
+debugPrint('ASSESSMENT DEBUG');
+debugPrint('peakHr=$peakHr hr60=$hr60 hr120=$hr120');
+debugPrint('drop1=${recoveryPattern.drop1}');
+debugPrint('drop2=${recoveryPattern.drop2}');
+debugPrint('ratio=${recoveryPattern.ratio}');
+debugPrint('label=${recoveryPattern.label}');
+debugPrint('description=${recoveryPattern.description}');
 
     context.goNamed(
       AssessmentResultWidget.routeName,

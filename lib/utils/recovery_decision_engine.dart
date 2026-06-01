@@ -1,13 +1,22 @@
-// lib/utils/recovery_decision_engine.dart
-
 import '/services/trend_service.dart';
 
-enum RecoveryDecisionState {
-  progress,
-  maintain,
-  caution,
-  recover,
-}
+import '../models/recovery_decision.dart';
+import '../models/recovery_input.dart';
+import 'recovery_metrics_calculator.dart';
+import 'recovery_signal_builder.dart';
+import 'recovery_decision_policy.dart';
+import 'recovery_message_builder.dart';
+
+export '../models/recovery_decision.dart';
+export '../models/recovery_input.dart';
+export '../models/recovery_metrics.dart';
+export '../models/recovery_signals.dart';
+export 'recovery_input_validator.dart';
+export 'recovery_metrics_calculator.dart';
+export 'recovery_signal_classifier.dart';
+export 'recovery_signal_builder.dart';
+export 'recovery_decision_policy.dart';
+export 'recovery_message_builder.dart';
 
 enum RecoveryPatternDecision {
   buildingBaseline,
@@ -19,32 +28,6 @@ enum RecoveryPatternDecision {
   variableRecovery,
   hiddenLoad,
   fatigueMismatch,
-}
-
-class RecoveryDecisionResult {
-  final RecoveryDecisionState state;
-  final String title;
-  final String summary;
-  final String recommendation;
-  final double hrrScore;
-  final double rpeScore;
-  final double feelingScore;
-  final double expectedRecovery;
-  final double recoveryGap;
-  final double fatigueSignal;
-
-  RecoveryDecisionResult({
-    required this.state,
-    required this.title,
-    required this.summary,
-    required this.recommendation,
-    required this.hrrScore,
-    required this.rpeScore,
-    required this.feelingScore,
-    required this.expectedRecovery,
-    required this.recoveryGap,
-    required this.fatigueSignal,
-  });
 }
 
 class PersonalisedRecoveryAdvice {
@@ -67,24 +50,20 @@ class PersonalisedRecoveryAdvice {
   });
 }
 
-double _clamp01(double value) {
-  if (value < 0) return 0;
-  if (value > 1) return 1;
-  return value;
-}
-
 double calculateHrrScore({
   required int peakHr,
   required int hr60,
   required int hr120,
 }) {
-  final drop60 = peakHr - hr60;
-  final drop120 = peakHr - hr120;
+  final input = RecoveryInput(
+    peakHr: peakHr,
+    hr60: hr60,
+    hr120: hr120,
+    rpe: 5,
+    feelingAfter: 5,
+  );
 
-  final score60 = _clamp01(drop60 / 40.0);
-  final score120 = _clamp01(drop120 / 60.0);
-
-  return _clamp01((score60 * 0.6) + (score120 * 0.4));
+  return RecoveryMetricsCalculator.calculate(input).hrrScore;
 }
 
 RecoveryDecisionResult assessRecoveryDecision({
@@ -93,94 +72,49 @@ RecoveryDecisionResult assessRecoveryDecision({
   required int hr120,
   required int rpe,
   required int feelingAfter,
+  String? activityType,
 }) {
-  final hrrScore = calculateHrrScore(
+  final input = RecoveryInput(
     peakHr: peakHr,
     hr60: hr60,
     hr120: hr120,
+    rpe: rpe,
+    feelingAfter: feelingAfter,
+    activityType: activityType,
   );
 
-  final rpeScore = _clamp01(rpe / 10.0);
-  final feelingScore = _clamp01(feelingAfter / 10.0);
-  final expectedRecovery = _clamp01(1.0 - rpeScore);
-  final recoveryGap = hrrScore - expectedRecovery;
+  final metrics = RecoveryMetricsCalculator.calculate(input);
+
+  final signals = RecoverySignalBuilder.build(
+    input: input,
+    metrics: metrics,
+  );
+
+  final decision = RecoveryDecisionPolicy.decide(signals);
+
+  final rpeScore = clamp01(rpe / 10.0);
+  final feelingScore = clamp01(feelingAfter / 10.0);
+
+  // Kept for display/debug compatibility with the previous engine.
+  // The final decision is now made from interpretable signals rather than
+  // relying only on recoveryGap.
+  final expectedRecovery = clamp01(1.0 - rpeScore);
+  final recoveryGap = metrics.hrrScore - expectedRecovery;
   final fatigueSignal = 1.0 - feelingScore;
 
-  RecoveryDecisionState state;
-
-  if (recoveryGap <= -0.30 && feelingScore <= 0.40) {
-    state = RecoveryDecisionState.recover;
-  } else if (recoveryGap <= -0.15 || feelingScore <= 0.50) {
-    state = RecoveryDecisionState.caution;
-  } else if (recoveryGap >= 0.20 && feelingScore >= 0.70) {
-    state = RecoveryDecisionState.progress;
-  } else {
-    state = RecoveryDecisionState.maintain;
-  }
-
-  switch (state) {
-    case RecoveryDecisionState.progress:
-      return RecoveryDecisionResult(
-        state: state,
-        title: 'Ready to progress',
-        summary: 'Your recovery was better than expected for the effort level you reported.',
-        recommendation:
-            'You appear to be coping well with this training load. Consider increasing intensity slightly next time, but keep the increase modest.',
-        hrrScore: hrrScore,
-        rpeScore: rpeScore,
-        feelingScore: feelingScore,
-        expectedRecovery: expectedRecovery,
-        recoveryGap: recoveryGap,
-        fatigueSignal: fatigueSignal,
-      );
-
-    case RecoveryDecisionState.maintain:
-      return RecoveryDecisionResult(
-        state: state,
-        title: 'Maintain current level',
-        summary: 'Your recovery response is broadly in line with how hard the session felt.',
-        recommendation:
-            'This looks like an appropriate training load. Keep the next session similar and look for steady improvement over time.',
-        hrrScore: hrrScore,
-        rpeScore: rpeScore,
-        feelingScore: feelingScore,
-        expectedRecovery: expectedRecovery,
-        recoveryGap: recoveryGap,
-        fatigueSignal: fatigueSignal,
-      );
-
-    case RecoveryDecisionState.caution:
-      return RecoveryDecisionResult(
-        state: state,
-        title: 'Use caution',
-        summary:
-            'Your recovery was a little slower than expected, or you reported feeling below normal after the session.',
-        recommendation:
-            'Consider reducing intensity next time, extending your warm-down, or allowing more recovery before another hard session.',
-        hrrScore: hrrScore,
-        rpeScore: rpeScore,
-        feelingScore: feelingScore,
-        expectedRecovery: expectedRecovery,
-        recoveryGap: recoveryGap,
-        fatigueSignal: fatigueSignal,
-      );
-
-    case RecoveryDecisionState.recover:
-      return RecoveryDecisionResult(
-        state: state,
-        title: 'Prioritise recovery',
-        summary:
-            'Your heart-rate recovery and how you felt after the workout both suggest your body was under strain.',
-        recommendation:
-            'Avoid another hard session immediately. Choose rest, walking, mobility work, or a very easy recovery session.',
-        hrrScore: hrrScore,
-        rpeScore: rpeScore,
-        feelingScore: feelingScore,
-        expectedRecovery: expectedRecovery,
-        recoveryGap: recoveryGap,
-        fatigueSignal: fatigueSignal,
-      );
-  }
+  return RecoveryDecisionResult(
+    state: decision.state,
+    reasonTag: decision.reasonTag,
+    title: RecoveryMessageBuilder.titleFor(decision),
+    summary: RecoveryMessageBuilder.summaryFor(decision),
+    recommendation: RecoveryMessageBuilder.recommendationFor(decision),
+    hrrScore: metrics.hrrScore,
+    rpeScore: rpeScore,
+    feelingScore: feelingScore,
+    expectedRecovery: expectedRecovery,
+    recoveryGap: recoveryGap,
+    fatigueSignal: fatigueSignal,
+  );
 }
 
 PersonalisedRecoveryAdvice buildPersonalisedRecoveryAdvice({
@@ -192,12 +126,12 @@ PersonalisedRecoveryAdvice buildPersonalisedRecoveryAdvice({
       .trim();
 
   if (trend.assessmentCount < 3) {
-    return PersonalisedRecoveryAdvice(
+    return const PersonalisedRecoveryAdvice(
       pattern: RecoveryPatternDecision.buildingBaseline,
       patternTitle: 'Building your baseline',
       whatItMeans:
           'There is not enough history yet to make a strong trend judgement. The app is learning what normal recovery looks like for you.',
-      possibleReasons: const [
+      possibleReasons: [
         'Early tests can vary depending on workout type, effort, hydration, sleep and measurement timing.',
       ],
       coachingFocus:
@@ -217,7 +151,12 @@ PersonalisedRecoveryAdvice buildPersonalisedRecoveryAdvice({
     patternTitle: _patternTitle(pattern),
     whatItMeans: _whatItMeans(pattern, trend),
     possibleReasons: reasons,
-    coachingFocus: _coachingFocus(pattern, trend, activity, activityModifier),
+    coachingFocus: _coachingFocus(
+      pattern,
+      trend,
+      activity,
+      activityModifier,
+    ),
     whatToTrackNext: _whatToTrackNext(pattern, trend, activity),
     confidence: _confidenceText(trend),
   );
@@ -330,15 +269,21 @@ List<String> _choosePossibleReasons(
   }
 
   if ((trend.recentAverageFeelingAfter ?? 10) <= 5) {
-    reasons.add('Lower post-workout feeling, which may reflect fatigue, sleep, hydration or stress.');
+    reasons.add(
+      'Lower post-workout feeling, which may reflect fatigue, sleep, hydration or stress.',
+    );
   }
 
   if (trend.recoveryGapTrend == RecoveryGapTrend.widening) {
-    reasons.add('Delayed early recovery with stronger continued recovery into the second minute.');
+    reasons.add(
+      'Delayed early recovery with stronger continued recovery into the second minute.',
+    );
   }
 
   if (trend.recoveryGapTrend == RecoveryGapTrend.narrowing) {
-    reasons.add('Strong early recovery followed by less continued drop before 120 seconds.');
+    reasons.add(
+      'Strong early recovery followed by less continued drop before 120 seconds.',
+    );
   }
 
   if ((trend.recoveryVariability ?? 0) >= 10) {
@@ -346,13 +291,21 @@ List<String> _choosePossibleReasons(
   }
 
   if (activity == 'running') {
-    reasons.add('Running load can be affected by leg fatigue, hills, pace, heat and impact stress.');
+    reasons.add(
+      'Running load can be affected by leg fatigue, hills, pace, heat and impact stress.',
+    );
   } else if (activity == 'cycling') {
-    reasons.add('Cycling recovery can vary with resistance, cadence, climbs and sustained leg effort.');
+    reasons.add(
+      'Cycling recovery can vary with resistance, cadence, climbs and sustained leg effort.',
+    );
   } else if (activity == 'rowing') {
-    reasons.add('Rowing can add whole-body fatigue, especially through legs, trunk, back and grip.');
+    reasons.add(
+      'Rowing can add whole-body fatigue, especially through legs, trunk, back and grip.',
+    );
   } else if (activity == 'hiit') {
-    reasons.add('HIIT often creates a stronger sympathetic load than steady aerobic work.');
+    reasons.add(
+      'HIIT often creates a stronger sympathetic load than steady aerobic work.',
+    );
   }
 
   if (reasons.isEmpty) {

@@ -71,21 +71,23 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: NewAssessmentWidget.routePath,
           builder: (context, params) => const NewAssessmentWidget(),
         ),
-        FFRoute(
-          name: AssessmentResultWidget.routeName,
-          path: AssessmentResultWidget.routePath,
-          builder: (context, params) => AssessmentResultWidget(
-            peakHr: params.getParam('peakHr', ParamType.int),
-            hr60: params.getParam('hr60', ParamType.int),
-            hr120: params.getParam('hr120', ParamType.int),
-            recoveryPercent120:
-                params.getParam('recoveryPercent120', ParamType.double),
-            earlyRecoveryAssessment:
-                params.getParam('earlyRecoveryAssessment', ParamType.String),
-            overallRecoveryAssessment:
-                params.getParam('overallRecoveryAssessment', ParamType.String),
-          ),
-        ),
+FFRoute(
+  name: AssessmentResultWidget.routeName,
+  path: AssessmentResultWidget.routePath,
+  builder: (context, params) => AssessmentResultWidget(
+    peakHr: params.getParam('peakHr', ParamType.int),
+    hr60: params.getParam('hr60', ParamType.int),
+    hr120: params.getParam('hr120', ParamType.int),
+    recoveryPercent120:
+        params.getParam('recoveryPercent120', ParamType.double),
+    earlyRecoveryAssessment:
+        params.getParam('earlyRecoveryAssessment', ParamType.String),
+    overallRecoveryAssessment:
+        params.getParam('overallRecoveryAssessment', ParamType.String),
+    rpe: params.getParam('rpe', ParamType.int),
+    feelingAfter: params.getParam('feelingAfter', ParamType.int),
+  ),
+),
         FFRoute(
           name: FitnessProgressWidget.routeName,
           path: FitnessProgressWidget.routePath,

@@ -39,8 +39,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FlutterDeepLinkingEnabled</key>
 	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string></string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Pulse Recovery reads heart rate data to measure workout recovery.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Pulse Recovery uses workout sessions to measure heart rate recovery.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
