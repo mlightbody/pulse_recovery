@@ -27,42 +27,18 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  RecoveryTrendSummary? _trendSummary;
-  PersonalisedRecoveryAdvice? _advice;
-  bool _isLoadingTrendSummary = true;
+  static const int _maxChartAssessments = 20;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => FitnessProgressModel());
-    _loadTrendSummary();
   }
 
   @override
   void dispose() {
     _model.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadTrendSummary() async {
-    try {
-      final summary = await TrendService().getRecoveryTrendSummary();
-      final advice = buildPersonalisedRecoveryAdvice(trend: summary);
-
-      if (!mounted) return;
-
-      setState(() {
-        _trendSummary = summary;
-        _advice = advice;
-        _isLoadingTrendSummary = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoadingTrendSummary = false;
-      });
-    }
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _assessmentStream() {
@@ -76,7 +52,8 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
         .collection('users')
         .doc(user.uid)
         .collection('assessments')
-        .orderBy('createdAt', descending: false)
+        .orderBy('createdAt', descending: true)
+        .limit(_maxChartAssessments)
         .snapshots();
   }
 
@@ -126,7 +103,9 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
     return List.generate(count, (index) => index.toDouble());
   }
 
-  List<String> _xLabels(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+  List<String> _xLabels(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
     return docs.map((doc) => _formatDateLabel(doc.data()['createdAt'])).toList();
   }
 
@@ -319,6 +298,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
       final hrr60 = _asDouble(data['hrr60']);
 
       if (peakHr == null || peakHr <= 0 || hrr60 == null) return 0.0;
+
       return (hrr60 / peakHr) * 100;
     }).toList();
 
@@ -328,6 +308,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
       final hrr120 = _asDouble(data['hrr120']);
 
       if (peakHr == null || peakHr <= 0 || hrr120 == null) return 0.0;
+
       return (hrr120 / peakHr) * 100;
     }).toList();
 
@@ -433,19 +414,16 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
     );
   }
 
-  Widget _decisionPanel() {
-    if (_isLoadingTrendSummary) {
-      return _emptyChartCard('Loading personalised recovery advice...');
-    }
-
-    final summary = _trendSummary;
-    final advice = _advice;
-
-    if (summary == null || advice == null) {
+  Widget _decisionPanel({
+    required RecoveryTrendSummary summary,
+    required PersonalisedRecoveryAdvice advice,
+  }) {
+    if (summary.assessmentCount == 0) {
       return _emptyChartCard('Personalised advice is not available yet.');
     }
 
     final gapChange = summary.recoveryGapChangeVsRecentAverage;
+
     final gapChangeText = gapChange == null
         ? null
         : '${gapChange >= 0 ? '+' : ''}${gapChange.toStringAsFixed(1)} pts vs recent timing average';
@@ -479,7 +457,6 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
                 ),
           ),
           const SizedBox(height: 18),
-
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -503,12 +480,14 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
                     Expanded(
                       child: Text(
                         summary.recoveryGapLabel,
-                        style: FlutterFlowTheme.of(context).labelLarge.override(
-                              font: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.bold,
-                              ),
-                              color: FlutterFlowTheme.of(context).primaryText,
-                            ),
+                        style:
+                            FlutterFlowTheme.of(context).labelLarge.override(
+                                  font: GoogleFonts.dmSans(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  color:
+                                      FlutterFlowTheme.of(context).primaryText,
+                                ),
                       ),
                     ),
                   ],
@@ -535,9 +514,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
               ],
             ),
           ),
-
           const SizedBox(height: 18),
-
           Text(
             'Possible reasons',
             style: FlutterFlowTheme.of(context).labelLarge.override(
@@ -569,9 +546,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
           Text(
             'Coaching focus',
             style: FlutterFlowTheme.of(context).labelLarge.override(
@@ -587,9 +562,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
                   lineHeight: 1.45,
                 ),
           ),
-
           const SizedBox(height: 16),
-
           Text(
             'What to track next',
             style: FlutterFlowTheme.of(context).labelLarge.override(
@@ -605,9 +578,7 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
                   lineHeight: 1.45,
                 ),
           ),
-
           const SizedBox(height: 16),
-
           Text(
             advice.confidence,
             style: FlutterFlowTheme.of(context).bodySmall.override(
@@ -621,11 +592,9 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
   }
 
   String _summaryValue(
-    RecoveryTrendSummary? summary,
+    RecoveryTrendSummary summary,
     String field,
   ) {
-    if (summary == null) return '—';
-
     switch (field) {
       case 'count':
         return summary.assessmentCount.toString();
@@ -638,6 +607,13 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
       default:
         return '—';
     }
+  }
+
+  RecoveryTrendSummary _buildTrendSummaryFromDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final assessments = docs.map((doc) => doc.data()).toList();
+    return TrendService().buildSummaryFromAssessments(assessments);
   }
 
   @override
@@ -671,108 +647,110 @@ class _FitnessProgressWidgetState extends State<FitnessProgressWidget> {
 
               final docs = snapshot.data?.docs ?? [];
 
-              return RefreshIndicator(
-                onRefresh: _loadTrendSummary,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back_rounded),
-                            onPressed: () {
-                              context.goNamed(DashboardWidget.routeName);
-                            },
-                          ),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Fitness Progress',
-                                  textAlign: TextAlign.center,
-                                  style: FlutterFlowTheme.of(context)
-                                      .headlineMedium
-                                      .override(
-                                        font: GoogleFonts.nunito(
-                                          fontWeight: FontWeight.w800,
-                                        ),
+              // Firestore returns latest 20 newest-first.
+              // Reverse only for charts so they display oldest-to-newest.
+              final chartDocs = docs.reversed.toList();
+
+              // Build the trend summary and advice from the same streamed docs.
+              // This avoids a second Firestore query via getRecoveryTrendSummary().
+              final trendSummary = _buildTrendSummaryFromDocs(docs);
+              final advice = buildPersonalisedRecoveryAdvice(
+                trend: trendSummary,
+              );
+
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          onPressed: () {
+                            context.goNamed(DashboardWidget.routeName);
+                          },
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Fitness Progress',
+                                textAlign: TextAlign.center,
+                                style: FlutterFlowTheme.of(context)
+                                    .headlineMedium
+                                    .override(
+                                      font: GoogleFonts.nunito(
+                                        fontWeight: FontWeight.w800,
                                       ),
-                                ),
-                                Text(
-                                  'Recovery trends over time',
-                                  textAlign: TextAlign.center,
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodySmall
-                                      .override(
-                                        font: GoogleFonts.dmSans(),
-                                        color: FlutterFlowTheme.of(context)
-                                            .secondaryText,
-                                      ),
-                                ),
-                              ],
-                            ),
+                                    ),
+                              ),
+                              Text(
+                                'Recovery trends over time',
+                                textAlign: TextAlign.center,
+                                style: FlutterFlowTheme.of(context)
+                                    .bodySmall
+                                    .override(
+                                      font: GoogleFonts.dmSans(),
+                                      color: FlutterFlowTheme.of(context)
+                                          .secondaryText,
+                                    ),
+                              ),
+                            ],
                           ),
-                          _menuButton(),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      Row(
-                        children: [
-                          _summaryCard(
-                            label: 'Tests',
-                            value: _summaryValue(_trendSummary, 'count'),
-                            icon: Icons.assignment_turned_in_rounded,
-                          ),
-                          const SizedBox(width: 12),
-                          _summaryCard(
-                            label: 'Avg recovery',
-                            value: _summaryValue(_trendSummary, 'average'),
-                            icon: Icons.favorite_rounded,
-                          ),
-                          const SizedBox(width: 12),
-                          _summaryCard(
-                            label: 'Best',
-                            value: _summaryValue(_trendSummary, 'best'),
-                            icon: Icons.trending_up_rounded,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      _sectionTitle(
-                        '120-second recovery %',
-                        'Y-axis shows percentage drop from peak HR.',
-                      ),
-                      const SizedBox(height: 12),
-                      _recoveryPercentChart(docs),
-
-                      const SizedBox(height: 28),
-
-                      _sectionTitle(
-                        'Cumulative recovery: 60s vs 120s',
-                        'Shows percentage drop from peak HR by 60 and 120 seconds.',
-                      ),
-                      const SizedBox(height: 12),
-                      _hrrChart(docs),
-
-                      const SizedBox(height: 28),
-
-                      _sectionTitle(
-                        'Personalised recovery insight',
-                        'Decision-engine feedback based on your recent trend.',
-                      ),
-                      const SizedBox(height: 12),
-                      _decisionPanel(),
-
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+                        ),
+                        _menuButton(),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        _summaryCard(
+                          label: 'Tests',
+                          value: _summaryValue(trendSummary, 'count'),
+                          icon: Icons.assignment_turned_in_rounded,
+                        ),
+                        const SizedBox(width: 12),
+                        _summaryCard(
+                          label: 'Avg recovery',
+                          value: _summaryValue(trendSummary, 'average'),
+                          icon: Icons.favorite_rounded,
+                        ),
+                        const SizedBox(width: 12),
+                        _summaryCard(
+                          label: 'Best',
+                          value: _summaryValue(trendSummary, 'best'),
+                          icon: Icons.trending_up_rounded,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    _sectionTitle(
+                      '120-second recovery %',
+                      'Latest 20 assessments. Y-axis shows percentage drop from peak HR.',
+                    ),
+                    const SizedBox(height: 12),
+                    _recoveryPercentChart(chartDocs),
+                    const SizedBox(height: 28),
+                    _sectionTitle(
+                      'Cumulative recovery: 60s vs 120s',
+                      'Latest 20 assessments. Shows percentage drop from peak HR by 60 and 120 seconds.',
+                    ),
+                    const SizedBox(height: 12),
+                    _hrrChart(chartDocs),
+                    const SizedBox(height: 28),
+                    _sectionTitle(
+                      'Personalised recovery insight',
+                      'Decision-engine feedback based on your recent trend.',
+                    ),
+                    const SizedBox(height: 12),
+                    _decisionPanel(
+                      summary: trendSummary,
+                      advice: advice,
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               );
             },
