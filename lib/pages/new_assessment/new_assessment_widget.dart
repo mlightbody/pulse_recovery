@@ -5,6 +5,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/utils/recovery_pattern.dart';
+import '/utils/recovery_decision_engine.dart';
 import '/services/assessment_service.dart';
 import '/models/pending_recovery_session.dart';
 import '/services/recovery_assessment_service.dart';
@@ -181,6 +182,14 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       hr120: hr120,
     );
 
+    final recoveryDecision = assessRecoveryDecision(
+      peakHr: peakHr,
+      hr60: hr60,
+      hr120: hr120,
+      rpe: rpe,
+      feelingAfter: feelingAfter,
+    );
+
     try {
       await AssessmentService().saveAssessment(
         peakHr: peakHr,
@@ -197,6 +206,16 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         duringEffortRating: rpe,
         postWorkoutFeelingRating: feelingAfter,
         notes: _selectedSource == null ? null : 'Source: $_selectedSource',
+
+        // Structured advice saved so the next assessment can evaluate
+        // what happened after this recommendation, including against
+        // the recent baseline in AssessmentService.
+        decisionState: recoveryDecision.state.name,
+        reasonTag: recoveryDecision.reasonTag.name,
+        adviceType: 'current_session',
+        adviceTitle: recoveryDecision.title,
+        adviceSummary: recoveryDecision.summary,
+        adviceRecommendation: recoveryDecision.recommendation,
       );
 
       // If this assessment used imported Apple Watch data, clear the pending
