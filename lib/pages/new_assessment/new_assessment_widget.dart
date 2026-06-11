@@ -1,19 +1,19 @@
 import '/components/button/button_widget.dart';
-import '/components/selection_card/selection_card_widget.dart';
 import '/components/step_header/step_header_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/utils/recovery_pattern.dart';
+import '/utils/recovery_assessment_levels.dart';
 import '/utils/recovery_decision_engine.dart';
 import '/services/assessment_service.dart';
 import '/models/pending_recovery_session.dart';
 import '/services/recovery_assessment_service.dart';
 import '/services/recovery_session_import_service.dart';
 import '/services/watch_session_service.dart';
+import '/widgets/recovery_curve_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'new_assessment_model.dart';
 export 'new_assessment_model.dart';
 
@@ -35,6 +35,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   final peakHrController = TextEditingController();
   final hr60Controller = TextEditingController();
   final hr120Controller = TextEditingController();
+
   final rpeController = TextEditingController();
   final feelingAfterController = TextEditingController();
 
@@ -46,6 +47,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   List<PendingRecoverySession> _pendingSessions = [];
   bool _loadingWatchSessions = true;
   String? _selectedSource;
+  PendingRecoverySession? _selectedWatchSession;
 
   @override
   void initState() {
@@ -93,36 +95,23 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       hr60Controller.text = values['hr60'].toString();
       hr120Controller.text = values['hr120'].toString();
       _selectedSource = session.source;
+      _selectedWatchSession = session;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${session.source} values added.\nNow complete effort and feeling.',
+          '${session.source} values added. Now complete effort and feeling.',
         ),
       ),
     );
-  }
-
-  String _earlyRecoveryAssessmentFor(int hrr60) {
-    if (hrr60 < 12) return 'Low';
-    if (hrr60 < 20) return 'Moderate';
-    if (hrr60 < 30) return 'Good';
-    return 'Excellent';
-  }
-
-  String _overallRecoveryAssessmentFor(int hrr120) {
-    if (hrr120 < 22) return 'Poor';
-    if (hrr120 < 35) return 'Fair';
-    if (hrr120 < 45) return 'Average';
-    if (hrr120 < 60) return 'Good';
-    return 'Excellent';
   }
 
   Future<void> _generateAssessment() async {
     final peakHr = int.tryParse(peakHrController.text.trim());
     final hr60 = int.tryParse(hr60Controller.text.trim());
     final hr120 = int.tryParse(hr120Controller.text.trim());
+
     final rpe = int.tryParse(rpeController.text.trim());
     final feelingAfter = int.tryParse(feelingAfterController.text.trim());
 
@@ -173,8 +162,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     final hrr120 = peakHr - hr120;
     final recoveryPercent120 = (hrr120 / peakHr) * 100;
 
-    final earlyRecoveryAssessment = _earlyRecoveryAssessmentFor(hrr60);
-    final overallRecoveryAssessment = _overallRecoveryAssessmentFor(hrr120);
+    final earlyRecoveryAssessment = classifyEarlyRecovery(hrr60);
+    final overallRecoveryAssessment = classifyOverallRecovery(hrr120);
 
     final recoveryPattern = calculateRecoveryPattern(
       peakHr: peakHr,
@@ -208,19 +197,22 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         notes: _selectedSource == null ? null : 'Source: $_selectedSource',
 
         // Structured advice saved so the next assessment can evaluate
-        // what happened after this recommendation, including against
-        // the recent baseline in AssessmentService.
+        // what happened after this recommendation.
         decisionState: recoveryDecision.state.name,
         reasonTag: recoveryDecision.reasonTag.name,
         adviceType: 'current_session',
         adviceTitle: recoveryDecision.title,
         adviceSummary: recoveryDecision.summary,
         adviceRecommendation: recoveryDecision.recommendation,
+
+        // Raw Apple Watch session data, when available.
+        heartRateSamples: _selectedWatchSession?.samples,
+        workoutStartedAt: _selectedWatchSession?.workoutStartedAt,
+        recoveryStartedAt: _selectedWatchSession?.recoveryStartedAt,
       );
 
-      // If this assessment used imported Apple Watch data, clear the pending
-      // watch session only after the Firebase save has succeeded.
-      if (_selectedSource != null) {
+      // Clear the pending watch session only after the Firebase save succeeds.
+      if (_selectedWatchSession != null) {
         await WatchSessionService.instance.clearLatestSession();
       }
     } catch (e) {
@@ -234,10 +226,11 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
 
     if (!mounted) return;
 
-    if (_selectedSource != null) {
+    if (_selectedWatchSession != null || _selectedSource != null) {
       setState(() {
         _pendingSessions = [];
         _selectedSource = null;
+        _selectedWatchSession = null;
       });
     }
 
@@ -332,44 +325,6 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     );
   }
 
-  Widget _durationChip(String label, {bool selected = false}) {
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: selected
-              ? FlutterFlowTheme.of(context).primaryContainer
-              : FlutterFlowTheme.of(context).secondaryBackground,
-          borderRadius: BorderRadius.circular(32.0),
-          border: Border.all(
-            color: selected
-                ? FlutterFlowTheme.of(context).primary
-                : FlutterFlowTheme.of(context).alternate,
-            width: 1.0,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                  font: GoogleFonts.dmSans(
-                    fontWeight: selected ? FontWeight.bold : null,
-                  ),
-                  color: selected
-                      ? FlutterFlowTheme.of(context).onPrimary
-                      : FlutterFlowTheme.of(context).primaryText,
-                  letterSpacing: 0.0,
-                  lineHeight: 1.55,
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _watchSessionSection() {
     if (_loadingWatchSessions) {
       return Container(
@@ -435,12 +390,19 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                     lineHeight: 1.55,
                   ),
             ),
+            if (session.samples.length >= 2) ...[
+              const SizedBox(height: 16.0),
+              RecoveryCurveChart(
+                samples: session.samples,
+                recoveryStartedAt: session.recoveryStartedAt,
+              ),
+            ],
             const SizedBox(height: 20.0),
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => _useWatchSession(session),
               child: ButtonWidget(
-                content: _selectedSource == session.source
+                content: _selectedWatchSession?.id == session.id
                     ? 'Watch Values Added'
                     : 'Use Watch Session',
                 iconPresent: false,
@@ -620,34 +582,6 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     );
   }
 
-  Widget _topNavigationMenu() {
-    return Align(
-      alignment: AlignmentDirectional.centerEnd,
-      child: PopupMenuButton<String>(
-        icon: const Icon(Icons.menu_rounded),
-        onSelected: _navigateFromMenu,
-        itemBuilder: (context) => const [
-          PopupMenuItem(value: 'home', child: Text('Home')),
-          PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
-          PopupMenuItem(value: 'new', child: Text('New Assessment')),
-          PopupMenuItem(
-            value: 'result',
-            child: Text('Assessment Result'),
-          ),
-          PopupMenuItem(
-            value: 'progress',
-            child: Text('Fitness Progress'),
-          ),
-          PopupMenuItem(value: 'history', child: Text('History Log')),
-          PopupMenuItem(
-            value: 'settings',
-            child: Text('Profile Settings'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -665,8 +599,28 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _topNavigationMenu(),
-                const SizedBox(height: 8.0),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.menu_rounded),
+                  onSelected: _navigateFromMenu,
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'home', child: Text('Home')),
+                    PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
+                    PopupMenuItem(value: 'new', child: Text('New Assessment')),
+                    PopupMenuItem(
+                      value: 'result',
+                      child: Text('Assessment Result'),
+                    ),
+                    PopupMenuItem(
+                      value: 'progress',
+                      child: Text('Fitness Progress'),
+                    ),
+                    PopupMenuItem(value: 'history', child: Text('History Log')),
+                    PopupMenuItem(
+                      value: 'settings',
+                      child: Text('Profile Settings'),
+                    ),
+                  ],
+                ),
                 Text(
                   'New Assessment',
                   style: FlutterFlowTheme.of(context).headlineMedium.override(
@@ -689,26 +643,12 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                       ),
                 ),
                 const SizedBox(height: 32.0),
-
-                /*
-                Activity and Duration are temporarily disabled because they are
-                not currently used by the assessment calculation or saved result.
-
-                To restore these sections later, reinsert the original Activity
-                and Duration UI blocks here and decide whether their selected
-                values should be saved to Firebase and/or passed to the result page.
-                */
-
-                wrapWithModel(
-                  model: _model.stepHeaderModel3,
-                  updateCallback: () => safeSetState(() {}),
-                  child: StepHeaderWidget(
-                    bg: FlutterFlowTheme.of(context).primaryContainer,
-                    number: '1',
-                    subtitle: 'Use a watch session or enter your BPM readings',
-                    textColor: FlutterFlowTheme.of(context).onPrimaryContainer,
-                    title: 'Recovery Data',
-                  ),
+                StepHeaderWidget(
+                  bg: FlutterFlowTheme.of(context).primaryContainer,
+                  number: '1',
+                  subtitle: 'Use a watch session or enter your BPM readings',
+                  textColor: FlutterFlowTheme.of(context).onPrimaryContainer,
+                  title: 'Recovery Data',
                 ),
                 const SizedBox(height: 16.0),
                 _watchSessionSection(),

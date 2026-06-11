@@ -4,7 +4,6 @@ import 'watch_session_service.dart';
 
 class RecoverySessionImportService {
   Future<List<PendingRecoverySession>> getPendingSessions() async {
-    // Pull the latest session saved by the native iPhone WatchConnectivity bridge.
     await WatchSessionService.instance.refreshLatestSession();
 
     final watchSession = WatchSessionService.instance.latestSession.value;
@@ -21,6 +20,7 @@ class RecoverySessionImportService {
       return HeartRateSample(
         timestamp: sample.timestamp,
         bpm: sample.hr,
+        phase: sample.phase,
       );
     }).toList();
 
@@ -30,14 +30,17 @@ class RecoverySessionImportService {
       HeartRateSample(
         timestamp: recoveryStartedAt,
         bpm: session.endHr,
+        phase: 'recovery',
       ),
       HeartRateSample(
         timestamp: recoveryStartedAt.add(const Duration(seconds: 60)),
         bpm: session.hr60,
+        phase: 'recovery',
       ),
       HeartRateSample(
         timestamp: recoveryStartedAt.add(const Duration(seconds: 120)),
         bpm: session.hr120,
+        phase: 'recovery',
       ),
     ];
 
