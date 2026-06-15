@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:528656991112:android:e1e10c207fcf28d471f03d",
+        "android_client_info": {
+          "package_name": "com.malcolmlightbody.pulserecovery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsl7btMh0m2XdeyxbcBP-N0hsRWqO92fU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:528656991112:android:25b8d654a09ce0c271f03d",
         "android_client_info": {
           "package_name": "com.mycompany.pulserecovery"

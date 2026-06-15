@@ -12,7 +12,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.pulserecoverywear"
+        applicationId = "com.malcolmlightbody.pulserecovery"
         minSdk = 30
         targetSdk = 36
         versionCode = 1

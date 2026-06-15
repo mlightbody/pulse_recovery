@@ -1,4 +1,4 @@
-package com.mycompany.pulserecovery
+package com.malcolmlightbody.pulserecovery
 
 import io.flutter.embedding.android.FlutterActivity
 
