@@ -1,6 +1,12 @@
 class HeartRateSample {
   final DateTime timestamp;
   final int bpm;
+
+  /// Optional phase label, usually:
+  /// - "workout"
+  /// - "recovery"
+  ///
+  /// Kept optional so older/manual data still works.
   final String? phase;
 
   const HeartRateSample({
@@ -21,11 +27,19 @@ class HeartRateSample {
     };
   }
 
-  factory HeartRateSample.fromJson(Map json) {
+  factory HeartRateSample.fromJson(Map<String, dynamic> json) {
     return HeartRateSample(
       timestamp: DateTime.parse(json['timestamp'] as String),
-      bpm: json['bpm'] as int,
-      phase: json['phase'] as String?,
+      bpm: _asInt(json['bpm']),
+      phase: json['phase']?.toString(),
     );
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is double) return value.round();
+    if (value is num) return value.round();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 }

@@ -2,12 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/heart_rate_sample.dart';
+import '../utils/recovery_baseline_comparison.dart';
+import '../utils/recovery_data_quality.dart';
+import '../utils/recovery_session_insight_builder.dart';
 
 class AssessmentService {
-  final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future saveAssessment({
+  static const int _baselineAssessmentCount = 5;
+
+  Future<void> saveAssessment({
     required int peakHr,
     required int hr60,
     required int hr120,
@@ -22,19 +27,21 @@ class AssessmentService {
     String? recoveryPatternDescription,
     String? recoveryPatternAdvice,
     String? notes,
+    String? source,
+    List<HeartRateSample>? heartRateSamples,
+    DateTime? workoutStartedAt,
+    DateTime? recoveryStartedAt,
 
     // Structured advice fields.
+    //
+    // These are saved so that the next assessment can say what happened
+    // after the previous recommendation.
     String? decisionState,
     String? reasonTag,
     String? adviceType,
     String? adviceTitle,
     String? adviceSummary,
     String? adviceRecommendation,
-
-    // Optional Apple Watch raw-session fields.
-    List<HeartRateSample>? heartRateSamples,
-    DateTime? workoutStartedAt,
-    DateTime? recoveryStartedAt,
   }) async {
     final user = _auth.currentUser;
 
@@ -47,19 +54,49 @@ class AssessmentService {
         .doc(user.uid)
         .collection('assessments');
 
-    // Get the immediately previous assessment before saving the new one.
-    final previousSnapshot = await assessmentsRef
+    // Fetch the latest 5 previous assessments before saving the new one.
+    //
+    // The first document is still the immediately previous assessment.
+    // All documents together form the recent baseline.
+    final recentSnapshot = await assessmentsRef
         .orderBy('createdAt', descending: true)
-        .limit(1)
+        .limit(_baselineAssessmentCount)
         .get();
 
-    final previousDoc =
-        previousSnapshot.docs.isEmpty ? null : previousSnapshot.docs.first;
-
+    final recentDocs = recentSnapshot.docs;
+    final previousDoc = recentDocs.isEmpty ? null : recentDocs.first;
     final previousData = previousDoc?.data();
 
-    final hasRawSamples =
-        heartRateSamples != null && heartRateSamples.isNotEmpty;
+    final recentAssessmentData =
+        recentDocs.map((doc) => doc.data()).toList();
+
+    final recentBaseline = _buildRecentBaseline(recentAssessmentData);
+
+    final dataQuality = RecoveryDataQualityAnalyser.analyse(
+      peakHr: peakHr,
+      hr60: hr60,
+      hr120: hr120,
+      samples: heartRateSamples ?? const [],
+      workoutStartedAt: workoutStartedAt,
+      recoveryStartedAt: recoveryStartedAt,
+    );
+
+    final baselineComparison = RecoveryBaselineComparator.compare(
+      currentRecoveryPercent120: recoveryPercent120,
+      recentAssessments: recentAssessmentData,
+      baselineWindow: _baselineAssessmentCount,
+    );
+
+    final insight = RecoverySessionInsightBuilder.build(
+      peakHr: peakHr,
+      hr60: hr60,
+      hr120: hr120,
+      rpe: duringEffortRating ?? 5,
+      feelingAfter: postWorkoutFeelingRating ?? 5,
+      recoveryPatternLabel: recoveryPattern,
+      dataQuality: dataQuality,
+      baseline: baselineComparison,
+    );
 
     final assessmentData = <String, dynamic>{
       'createdAt': FieldValue.serverTimestamp(),
@@ -78,34 +115,35 @@ class AssessmentService {
       'duringEffortRating': duringEffortRating,
       'postWorkoutFeelingRating': postWorkoutFeelingRating,
       'notes': notes,
-      'source': hasRawSamples ? 'apple_watch' : 'manual',
+      'source': source ?? 'manual',
       'appVersion': '0.1.0',
-
-      // Optional raw Apple Watch session metadata.
-      'workoutStartedAt': workoutStartedAt == null
-          ? null
-          : Timestamp.fromDate(workoutStartedAt),
-      'recoveryStartedAt': recoveryStartedAt == null
-          ? null
-          : Timestamp.fromDate(recoveryStartedAt),
-      'heartRateSamples': heartRateSamples
-              ?.map(
-                (sample) => {
-                  'timestamp': Timestamp.fromDate(sample.timestamp),
-                  'bpm': sample.bpm,
-                  if (sample.phase != null) 'phase': sample.phase,
-                },
-              )
-              .toList() ??
-          [],
+      'decisionEngineVersion': 2,
+      'dataQuality': dataQuality.toMap(),
+      'baseline': baselineComparison.toMap(),
+      'insight': insight.toMap(),
     };
 
-    if (decisionState != null ||
+    if (heartRateSamples != null && heartRateSamples.isNotEmpty) {
+      assessmentData['heartRateSamples'] =
+          heartRateSamples.map((sample) => sample.toJson()).toList();
+    }
+
+    if (workoutStartedAt != null) {
+      assessmentData['workoutStartedAt'] = Timestamp.fromDate(workoutStartedAt);
+    }
+
+    if (recoveryStartedAt != null) {
+      assessmentData['recoveryStartedAt'] = Timestamp.fromDate(recoveryStartedAt);
+    }
+
+    final hasStructuredAdvice = decisionState != null ||
         reasonTag != null ||
         adviceType != null ||
         adviceTitle != null ||
         adviceSummary != null ||
-        adviceRecommendation != null) {
+        adviceRecommendation != null;
+
+    if (hasStructuredAdvice) {
       assessmentData['advice'] = {
         'state': decisionState,
         'reasonTag': reasonTag,
@@ -121,6 +159,7 @@ class AssessmentService {
       previousAssessmentId: previousDoc?.id,
       previousData: previousData,
       currentData: assessmentData,
+      recentBaseline: recentBaseline,
     );
 
     if (previousAdviceOutcome != null) {
@@ -134,14 +173,15 @@ class AssessmentService {
     required String? previousAssessmentId,
     required Map<String, dynamic>? previousData,
     required Map<String, dynamic> currentData,
+    required Map<String, dynamic>? recentBaseline,
   }) {
     if (previousAssessmentId == null || previousData == null) {
       return null;
     }
 
-    final previousAdviceRaw = previousData['advice'];
+    final previousAdvice = _extractPreviousAdvice(previousData);
 
-    if (previousAdviceRaw is! Map) {
+    if (previousAdvice == null) {
       return null;
     }
 
@@ -166,45 +206,174 @@ class AssessmentService {
 
     final recoveryPercentChange = currentRecovery - previousRecovery;
 
-    final outcomeLabel = _outcomeLabelFromRecoveryChange(
-      recoveryPercentChange,
-    );
-
-    return {
+    final outcome = <String, dynamic>{
       'previousAssessmentId': previousAssessmentId,
 
       // Previous advice metadata.
-      'previousAdviceState': previousAdviceRaw['state'],
-      'previousAdviceReasonTag': previousAdviceRaw['reasonTag'],
-      'previousAdviceType': previousAdviceRaw['type'],
-      'previousAdviceTitle': previousAdviceRaw['title'],
+      'previousAdviceState': previousAdvice['state'],
+      'previousAdviceReasonTag': previousAdvice['reasonTag'],
+      'previousAdviceType': previousAdvice['type'],
+      'previousAdviceTitle': previousAdvice['title'],
+      'previousAdviceSummary': previousAdvice['summary'],
+      'previousAdviceRecommendation': previousAdvice['recommendation'],
 
-      // Outcome values.
-      'outcomeLabel': outcomeLabel,
+      // Existing previous-to-current comparison fields.
+      //
+      // These are kept for backwards compatibility and for simple continuity.
+      'outcomeLabel': _outcomeLabelFromRecoveryChange(recoveryPercentChange),
       'recoveryPercentChange': recoveryPercentChange,
       'previousRecoveryPercent120': previousRecovery,
       'currentRecoveryPercent120': currentRecovery,
-      'hrr60Change': _nullableIntDifference(
-        currentHrr60,
-        previousHrr60,
-      ),
-      'hrr120Change': _nullableIntDifference(
-        currentHrr120,
-        previousHrr120,
-      ),
-      'feelingAfterChange': _nullableIntDifference(
-        currentFeeling,
-        previousFeeling,
-      ),
-      'rpeChange': _nullableIntDifference(
-        currentEffort,
-        previousEffort,
-      ),
+      'hrr60Change': _nullableIntDifference(currentHrr60, previousHrr60),
+      'hrr120Change': _nullableIntDifference(currentHrr120, previousHrr120),
+      'feelingAfterChange': _nullableIntDifference(currentFeeling, previousFeeling),
+      'rpeChange': _nullableIntDifference(currentEffort, previousEffort),
 
       // Placeholder for later UI question:
       // "Did you follow the previous recommendation?"
       'userSaysFollowedAdvice': null,
       'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    if (recentBaseline != null) {
+      final baselineRecovery =
+          _toDouble(recentBaseline['baselineRecoveryPercent120']);
+      final baselineHrr60 = _toDouble(recentBaseline['baselineHrr60']);
+      final baselineHrr120 = _toDouble(recentBaseline['baselineHrr120']);
+      final baselineFeeling =
+          _toDouble(recentBaseline['baselinePostWorkoutFeelingRating']);
+      final baselineEffort =
+          _toDouble(recentBaseline['baselineDuringEffortRating']);
+
+      final currentRecoveryVsBaseline =
+          baselineRecovery == null ? null : currentRecovery - baselineRecovery;
+
+      final currentHrr60VsBaseline =
+          baselineHrr60 == null || currentHrr60 == null
+              ? null
+              : currentHrr60 - baselineHrr60;
+
+      final currentHrr120VsBaseline =
+          baselineHrr120 == null || currentHrr120 == null
+              ? null
+              : currentHrr120 - baselineHrr120;
+
+      final currentFeelingVsBaseline =
+          baselineFeeling == null || currentFeeling == null
+              ? null
+              : currentFeeling - baselineFeeling;
+
+      final currentEffortVsBaseline =
+          baselineEffort == null || currentEffort == null
+              ? null
+              : currentEffort - baselineEffort;
+
+      outcome.addAll({
+        // Baseline metadata.
+        'baselineWindow': _baselineAssessmentCount,
+        'baselineAssessmentCount': recentBaseline['baselineAssessmentCount'],
+
+        // Baseline values.
+        'baselineRecoveryPercent120': baselineRecovery,
+        'baselineHrr60': baselineHrr60,
+        'baselineHrr120': baselineHrr120,
+        'baselinePostWorkoutFeelingRating': baselineFeeling,
+        'baselineDuringEffortRating': baselineEffort,
+
+        // Current result compared with recent baseline.
+        'currentVsBaselineRecoveryPercentChange': currentRecoveryVsBaseline,
+        'currentVsBaselineHrr60Change': currentHrr60VsBaseline,
+        'currentVsBaselineHrr120Change': currentHrr120VsBaseline,
+        'currentVsBaselineFeelingAfterChange': currentFeelingVsBaseline,
+        'currentVsBaselineRpeChange': currentEffortVsBaseline,
+
+        // Safer interpretation label.
+        //
+        // This avoids implying that the previous advice caused the result.
+        'baselineComparisonLabel': _baselineComparisonLabel(
+          currentRecoveryVsBaseline,
+        ),
+      });
+    }
+
+    return outcome;
+  }
+
+  Map<String, dynamic>? _buildRecentBaseline(
+    List<Map<String, dynamic>> previousAssessments,
+  ) {
+    if (previousAssessments.isEmpty) {
+      return null;
+    }
+
+    final recoveryValues = <double>[];
+    final hrr60Values = <double>[];
+    final hrr120Values = <double>[];
+    final feelingValues = <double>[];
+    final effortValues = <double>[];
+
+    for (final data in previousAssessments) {
+      final recovery = _toDouble(data['recoveryPercent120']);
+      final hrr60 = _toDouble(data['hrr60']);
+      final hrr120 = _toDouble(data['hrr120']);
+      final feeling = _toDouble(data['postWorkoutFeelingRating']);
+      final effort = _toDouble(data['duringEffortRating']);
+
+      if (recovery != null) recoveryValues.add(recovery);
+      if (hrr60 != null) hrr60Values.add(hrr60);
+      if (hrr120 != null) hrr120Values.add(hrr120);
+      if (feeling != null) feelingValues.add(feeling);
+      if (effort != null) effortValues.add(effort);
+    }
+
+    if (recoveryValues.isEmpty) {
+      return null;
+    }
+
+    return {
+      'baselineAssessmentCount': previousAssessments.length,
+      'baselineRecoveryPercent120': _averageOrNull(recoveryValues),
+      'baselineHrr60': _averageOrNull(hrr60Values),
+      'baselineHrr120': _averageOrNull(hrr120Values),
+      'baselinePostWorkoutFeelingRating': _averageOrNull(feelingValues),
+      'baselineDuringEffortRating': _averageOrNull(effortValues),
+    };
+  }
+
+  Map<String, dynamic>? _extractPreviousAdvice(
+    Map<String, dynamic> previousData,
+  ) {
+    final previousAdviceRaw = previousData['advice'];
+
+    if (previousAdviceRaw is Map) {
+      return {
+        'state': previousAdviceRaw['state'],
+        'reasonTag': previousAdviceRaw['reasonTag'],
+        'type': previousAdviceRaw['type'],
+        'title': previousAdviceRaw['title'],
+        'summary': previousAdviceRaw['summary'],
+        'recommendation': previousAdviceRaw['recommendation'],
+      };
+    }
+
+    // Fallback for older assessments saved before the structured advice map.
+    final fallbackTitle = previousData['recoveryPattern'];
+    final fallbackSummary = previousData['recoveryPatternDescription'];
+    final fallbackRecommendation = previousData['recoveryPatternAdvice'];
+
+    if (fallbackTitle == null &&
+        fallbackSummary == null &&
+        fallbackRecommendation == null) {
+      return null;
+    }
+
+    return {
+      'state': null,
+      'reasonTag': 'legacy_recovery_pattern',
+      'type': 'legacy_current_session',
+      'title': fallbackTitle,
+      'summary': fallbackSummary,
+      'recommendation': fallbackRecommendation,
     };
   }
 
@@ -218,6 +387,32 @@ class AssessmentService {
     }
 
     return 'stable';
+  }
+
+  String? _baselineComparisonLabel(double? change) {
+    if (change == null) {
+      return null;
+    }
+
+    if (change >= 5.0) {
+      return 'above_recent_baseline';
+    }
+
+    if (change <= -5.0) {
+      return 'below_recent_baseline';
+    }
+
+    return 'near_recent_baseline';
+  }
+
+  double? _averageOrNull(List<double> values) {
+    if (values.isEmpty) {
+      return null;
+    }
+
+    final total = values.fold(0.0, (sum, value) => sum + value);
+
+    return total / values.length;
   }
 
   int? _nullableIntDifference(int? current, int? previous) {

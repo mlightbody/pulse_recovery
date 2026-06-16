@@ -34,10 +34,7 @@ class PendingRecoverySession {
         .abs();
 
     for (final sample in samples) {
-      final diff = sample.timestamp
-          .difference(targetTime)
-          .inMilliseconds
-          .abs();
+      final diff = sample.timestamp.difference(targetTime).inMilliseconds.abs();
 
       if (diff < smallestDifference) {
         nearest = sample;
@@ -49,6 +46,7 @@ class PendingRecoverySession {
   }
 
   int? get hr60 => heartRateNearestToSeconds(60);
+
   int? get hr120 => heartRateNearestToSeconds(120);
 
   Map<String, dynamic> toJson() {
@@ -68,7 +66,7 @@ class PendingRecoverySession {
       workoutStartedAt: DateTime.parse(json['workoutStartedAt'] as String),
       recoveryStartedAt: DateTime.parse(json['recoveryStartedAt'] as String),
       samples: (json['samples'] as List)
-          .map((s) => HeartRateSample.fromJson(s as Map<String, dynamic>))
+          .map((s) => HeartRateSample.fromJson(Map<String, dynamic>.from(s)))
           .toList(),
       source: json['source'] as String,
       analysed: json['analysed'] as bool? ?? false,

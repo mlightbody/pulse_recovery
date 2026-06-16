@@ -166,13 +166,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Important workaround:
-        // keeping the Activity awake preserves the reliable foreground HR sampling
-        // behaviour we saw with MeasureClient.
+        // Keep the watch screen awake while this Activity is open.
+        // This is the least invasive workaround for MeasureClient pausing
+        // heart-rate updates when the watch screen blanks.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         sessionStore = HrSessionStore(this)
         sessionSync = WatchSessionSync(this)
+
         pendingCount = sessionStore.unsyncedCount()
         debugStatusText = statusSummary()
 
@@ -304,9 +305,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Button(
-                            onClick = {
-                                refreshStoredSessionDebugStatus()
-                            },
+                            onClick = { refreshStoredSessionDebugStatus() },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = recordingState == RecordingState.IDLE ||
                                     recordingState == RecordingState.SAVED
@@ -337,7 +336,9 @@ class MainActivity : ComponentActivity() {
     private fun requestBodySensorPermissionIfNeeded() {
         val permission = Manifest.permission.BODY_SENSORS
 
-        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, permission) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
             bodySensorPermissionLauncher.launch(permission)
         }
     }
@@ -350,6 +351,10 @@ class MainActivity : ComponentActivity() {
             requestBodySensorPermissionIfNeeded()
             return
         }
+
+        // Re-apply this when recording starts, in case the Activity was recreated
+        // or the flag was cleared by lifecycle changes.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         resetCurrentSession()
 

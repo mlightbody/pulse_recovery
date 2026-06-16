@@ -6,19 +6,22 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/models/heart_rate_sample.dart';
-import '/utils/recovery_pattern.dart';
-import '/utils/recovery_assessment_levels.dart';
-import '/utils/recovery_decision_engine.dart';
-import '/services/assessment_service.dart';
 import '/models/pending_recovery_session.dart';
+import '/services/android_watch_session_service.dart';
+import '/services/assessment_service.dart';
 import '/services/recovery_assessment_service.dart';
 import '/services/recovery_session_import_service.dart';
 import '/services/watch_session_service.dart';
+import '/utils/recovery_assessment_levels.dart';
+import '/utils/recovery_decision_engine.dart';
+import '/utils/recovery_pattern.dart';
 import '/widgets/recovery_curve_chart.dart';
-import '/services/android_watch_session_service.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'new_assessment_model.dart';
+
 export 'new_assessment_model.dart';
 
 class NewAssessmentWidget extends StatefulWidget {
@@ -39,18 +42,20 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   final peakHrController = TextEditingController();
   final hr60Controller = TextEditingController();
   final hr120Controller = TextEditingController();
-
   final rpeController = TextEditingController();
   final feelingAfterController = TextEditingController();
 
   final RecoverySessionImportService _importService =
       RecoverySessionImportService();
+
   final RecoveryAssessmentService _assessmentService =
       RecoveryAssessmentService();
 
   List<PendingRecoverySession> _pendingSessions = [];
   bool _loadingWatchSessions = true;
+
   String? _selectedSource;
+
   PendingRecoverySession? _selectedWatchSession;
 
   List<Map<String, dynamic>> _androidWatchSessions = [];
@@ -60,33 +65,60 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   @override
   void initState() {
     super.initState();
+
     _model = createModel(context, () => NewAssessmentModel());
+
     _loadPendingSessions();
     _loadAndroidWatchSessions();
   }
 
   Future<void> _loadPendingSessions() async {
-    final sessions = await _importService.getPendingSessions();
+    try {
+      final sessions = await _importService.getPendingSessions();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _pendingSessions = sessions;
-      _loadingWatchSessions = false;
-    });
+      setState(() {
+        _pendingSessions = sessions;
+        _loadingWatchSessions = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _pendingSessions = [];
+        _loadingWatchSessions = false;
+      });
+    }
   }
 
   Future<void> _loadAndroidWatchSessions() async {
-    final sessions = await AndroidWatchSessionService.getReceivedWatchSessions();
+    try {
+      final sessions =
+          await AndroidWatchSessionService.getReceivedWatchSessions();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _androidWatchSessions = sessions
-          .where((session) => session['importStatus']?.toString() != 'imported')
-          .toList();
-      _loadingAndroidWatchSessions = false;
-    });
+      setState(() {
+        _androidWatchSessions = sessions
+            .where(
+              (session) =>
+                  session['importStatus']?.toString().toLowerCase() !=
+                  'imported',
+            )
+            .map((session) => Map<String, dynamic>.from(session))
+            .toList();
+
+        _loadingAndroidWatchSessions = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _androidWatchSessions = [];
+        _loadingAndroidWatchSessions = false;
+      });
+    }
   }
 
   @override
@@ -96,7 +128,9 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     hr120Controller.dispose();
     rpeController.dispose();
     feelingAfterController.dispose();
+
     _model.dispose();
+
     super.dispose();
   }
 
@@ -116,15 +150,18 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       peakHrController.text = values['peakHr'].toString();
       hr60Controller.text = values['hr60'].toString();
       hr120Controller.text = values['hr120'].toString();
+
       _selectedSource = session.source;
       _selectedWatchSession = session;
+
+      // Only one source can be selected at a time.
       _selectedAndroidWatchSession = null;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${session.source} values added. Now complete effort and feeling.',
+          '${session.source} values added.\nNow complete effort and feeling.',
         ),
       ),
     );
@@ -156,14 +193,14 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       _selectedSource = source;
       _selectedAndroidWatchSession = session;
 
-      // Ensure Apple Watch selection is cleared.
+      // Only one source can be selected at a time.
       _selectedWatchSession = null;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '$source values added. Now complete effort and feeling.',
+          '$source values added.\nNow complete effort and feeling.',
         ),
       ),
     );
@@ -173,9 +210,9 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     final peakHr = int.tryParse(peakHrController.text.trim());
     final hr60 = int.tryParse(hr60Controller.text.trim());
     final hr120 = int.tryParse(hr120Controller.text.trim());
-
     final rpe = int.tryParse(rpeController.text.trim());
-    final feelingAfter = int.tryParse(feelingAfterController.text.trim());
+    final feelingAfter =
+        int.tryParse(feelingAfterController.text.trim());
 
     if (peakHr == null ||
         hr60 == null ||
@@ -222,7 +259,7 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
 
     final hrr60 = peakHr - hr60;
     final hrr120 = peakHr - hr120;
-    final recoveryPercent120 = (hrr120 / peakHr) * 100;
+    final recoveryPercent120 = (hrr120 / peakHr) * 100.0;
 
     final earlyRecoveryAssessment = classifyEarlyRecovery(hrr60);
     final overallRecoveryAssessment = classifyOverallRecovery(hrr120);
@@ -241,6 +278,30 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       feelingAfter: feelingAfter,
     );
 
+    final selectedHeartRateSamples =
+        _selectedWatchSession?.samples ??
+            (_selectedAndroidWatchSession == null
+                ? null
+                : _androidHeartRateSamplesFromSession(
+                    _selectedAndroidWatchSession!,
+                  ));
+
+    final selectedWorkoutStartedAt =
+        _selectedWatchSession?.workoutStartedAt ??
+            (_selectedAndroidWatchSession == null
+                ? null
+                : _androidWorkoutStartedAt(
+                    _selectedAndroidWatchSession!,
+                  ));
+
+    final selectedRecoveryStartedAt =
+        _selectedWatchSession?.recoveryStartedAt ??
+            (_selectedAndroidWatchSession == null
+                ? null
+                : _androidRecoveryStartedAt(
+                    _selectedAndroidWatchSession!,
+                  ));
+
     try {
       await AssessmentService().saveAssessment(
         peakHr: peakHr,
@@ -258,6 +319,9 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         postWorkoutFeelingRating: feelingAfter,
         notes: _selectedSource == null ? null : 'Source: $_selectedSource',
 
+        // Requires the updated AssessmentService I gave you previously.
+        source: _selectedSource ?? 'manual',
+
         // Structured advice saved so the next assessment can evaluate
         // what happened after this recommendation.
         decisionState: recoveryDecision.state.name,
@@ -268,28 +332,14 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         adviceRecommendation: recoveryDecision.recommendation,
 
         // Raw watch session data, when available.
+        //
         // Apple Watch and Samsung Watch are both saved using the same structure:
         // heartRateSamples: [{ timestamp, bpm, phase }]
         // workoutStartedAt: DateTime
         // recoveryStartedAt: DateTime
-        heartRateSamples: _selectedWatchSession?.samples ??
-            (_selectedAndroidWatchSession == null
-                ? null
-                : _androidHeartRateSamplesFromSession(
-                    _selectedAndroidWatchSession!,
-                  )),
-        workoutStartedAt: _selectedWatchSession?.workoutStartedAt ??
-            (_selectedAndroidWatchSession == null
-                ? null
-                : _androidWorkoutStartedAt(
-                    _selectedAndroidWatchSession!,
-                  )),
-        recoveryStartedAt: _selectedWatchSession?.recoveryStartedAt ??
-            (_selectedAndroidWatchSession == null
-                ? null
-                : _androidRecoveryStartedAt(
-                    _selectedAndroidWatchSession!,
-                  )),
+        heartRateSamples: selectedHeartRateSamples,
+        workoutStartedAt: selectedWorkoutStartedAt,
+        recoveryStartedAt: selectedRecoveryStartedAt,
       );
 
       // Clear/mark the selected watch session only after the Firebase save succeeds.
@@ -298,7 +348,8 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       }
 
       if (_selectedAndroidWatchSession != null) {
-        final sessionId = _selectedAndroidWatchSession!['sessionId']?.toString();
+        final sessionId =
+            _selectedAndroidWatchSession!['sessionId']?.toString();
 
         if (sessionId != null && sessionId.isNotEmpty) {
           await AndroidWatchSessionService.markWatchSessionImported(sessionId);
@@ -388,7 +439,6 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     if (value == null) return 0;
     if (value is int) return value;
     if (value is num) return value.toInt();
-
     return int.tryParse(value.toString()) ?? 0;
   }
 
@@ -486,13 +536,12 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
               ? 'workout'
               : 'recovery';
 
-      samples.add(
-        HeartRateSample(
-          timestamp: timestamp,
-          bpm: bpmRaw.round(),
-          phase: phase,
-        ),
-      );
+samples.add(
+  HeartRateSample(
+    timestamp: timestamp,
+    bpm: bpmRaw.round(),
+  ),
+);
     }
 
     samples.sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -699,23 +748,24 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
             const SizedBox(height: 16.0),
             ..._androidWatchSessions.map((session) {
               final sessionId = session['sessionId']?.toString() ?? '';
-              final source = session['source']?.toString() ?? 'Samsung Watch';
+              final source =
+                  session['source']?.toString() ?? 'Samsung Watch';
 
               final peakHr = _asInt(session['peakHr']);
               final workoutEndHr = _asInt(session['workoutEndHr']);
               final hr60 = _asInt(session['hr60']);
               final hr120 = _asInt(session['hr120']);
               final sampleCount = _asInt(session['sampleCount']);
+
               final receivedAt = _formatAndroidWatchDate(
                 session['receivedAtMillis'],
               );
 
-              final samsungSamples = _androidHeartRateSamplesFromSession(
-                session,
-              );
-              final samsungRecoveryStartedAt = _androidRecoveryStartedAt(
-                session,
-              );
+              final samsungSamples =
+                  _androidHeartRateSamplesFromSession(session);
+
+              final samsungRecoveryStartedAt =
+                  _androidRecoveryStartedAt(session);
 
               final isSelected =
                   _selectedAndroidWatchSession?['sessionId']?.toString() ==
@@ -739,21 +789,24 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                   children: [
                     Text(
                       source,
-                      style: FlutterFlowTheme.of(context).bodyMedium.override(
-                            font: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w700,
-                            ),
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            letterSpacing: 0.0,
-                            lineHeight: 1.4,
-                          ),
+                      style:
+                          FlutterFlowTheme.of(context).bodyMedium.override(
+                                font: GoogleFonts.dmSans(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                color:
+                                    FlutterFlowTheme.of(context).primaryText,
+                                letterSpacing: 0.0,
+                                lineHeight: 1.4,
+                              ),
                     ),
                     const SizedBox(height: 4.0),
                     Text(
                       'Received: $receivedAt',
                       style: FlutterFlowTheme.of(context).bodySmall.override(
                             font: GoogleFonts.dmSans(),
-                            color: FlutterFlowTheme.of(context).secondaryText,
+                            color:
+                                FlutterFlowTheme.of(context).secondaryText,
                             letterSpacing: 0.0,
                             lineHeight: 1.4,
                           ),
@@ -765,14 +818,16 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                       '60-second HR: ${hr60 > 0 ? hr60 : '-'}\n'
                       '120-second HR: ${hr120 > 0 ? hr120 : '-'}\n'
                       'Samples: $sampleCount',
-                      style: FlutterFlowTheme.of(context).bodyMedium.override(
-                            font: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            letterSpacing: 0.0,
-                            lineHeight: 1.55,
-                          ),
+                      style:
+                          FlutterFlowTheme.of(context).bodyMedium.override(
+                                font: GoogleFonts.dmSans(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                color:
+                                    FlutterFlowTheme.of(context).primaryText,
+                                letterSpacing: 0.0,
+                                lineHeight: 1.55,
+                              ),
                     ),
                     if (samsungSamples.length >= 2 &&
                         samsungRecoveryStartedAt != null) ...[
@@ -993,8 +1048,14 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                   onSelected: _navigateFromMenu,
                   itemBuilder: (context) => const [
                     PopupMenuItem(value: 'home', child: Text('Home')),
-                    PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
-                    PopupMenuItem(value: 'new', child: Text('New Assessment')),
+                    PopupMenuItem(
+                      value: 'dashboard',
+                      child: Text('Dashboard'),
+                    ),
+                    PopupMenuItem(
+                      value: 'new',
+                      child: Text('New Assessment'),
+                    ),
                     PopupMenuItem(
                       value: 'result',
                       child: Text('Assessment Result'),
@@ -1003,7 +1064,10 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                       value: 'progress',
                       child: Text('Fitness Progress'),
                     ),
-                    PopupMenuItem(value: 'history', child: Text('History Log')),
+                    PopupMenuItem(
+                      value: 'history',
+                      child: Text('History Log'),
+                    ),
                     PopupMenuItem(
                       value: 'settings',
                       child: Text('Profile Settings'),
