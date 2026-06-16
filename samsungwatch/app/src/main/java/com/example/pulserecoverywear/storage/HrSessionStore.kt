@@ -77,7 +77,15 @@ class HrSessionStore(private val context: Context) {
             it.syncStatus == "PENDING" || it.syncStatus == "QUEUED"
         }
     }
+    fun statusSummary(): String {
+        val sessions = loadAllSessions()
 
+        val pending = sessions.count { it.syncStatus == "PENDING" }
+        val queued = sessions.count { it.syncStatus == "QUEUED" }
+        val synced = sessions.count { it.syncStatus == "SYNCED" }
+
+        return "Total: ${sessions.size}, PENDING: $pending, QUEUED: $queued, SYNCED: $synced"
+    }
     fun deleteSyncedSessions() {
         val sessions = loadAllSessions().filter {
             it.syncStatus != "SYNCED"

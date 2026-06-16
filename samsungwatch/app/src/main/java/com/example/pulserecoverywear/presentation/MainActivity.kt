@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
 
     private var statusText by mutableStateOf("Ready")
     private var syncStatusText by mutableStateOf("Sync: not attempted")
+    private var debugStatusText by mutableStateOf("Debug: not checked")
 
     private var recoveryJob: Job? = null
 
@@ -167,6 +168,7 @@ class MainActivity : ComponentActivity() {
         sessionStore = HrSessionStore(this)
         sessionSync = WatchSessionSync(this)
         pendingCount = sessionStore.unsyncedCount()
+        debugStatusText = statusSummary()
 
         requestBodySensorPermissionIfNeeded()
 
@@ -252,6 +254,11 @@ class MainActivity : ComponentActivity() {
                             style = MaterialTheme.typography.bodySmall
                         )
 
+                        Text(
+                            text = debugStatusText,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
@@ -292,8 +299,21 @@ class MainActivity : ComponentActivity() {
 
                         Button(
                             onClick = {
+                                refreshStoredSessionDebugStatus()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = recordingState == RecordingState.IDLE ||
+                                    recordingState == RecordingState.SAVED
+                        ) {
+                            Text("Debug Status")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = {
                                 sessionStore.deleteSyncedSessions()
-                                pendingCount = sessionStore.unsyncedCount()
+                                refreshStoredSessionDebugStatus()
                                 syncStatusText = "Deleted synced sessions"
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -331,6 +351,7 @@ class MainActivity : ComponentActivity() {
         recordingState = RecordingState.WORKOUT
         statusText = "Starting workout..."
         syncStatusText = "Sync: not attempted"
+        debugStatusText = statusSummary()
 
         lifecycleScope.launch {
             try {
@@ -414,11 +435,12 @@ class MainActivity : ComponentActivity() {
             if (session == null) {
                 statusText = "No HR points to save"
                 recordingState = RecordingState.IDLE
+                refreshStoredSessionDebugStatus()
                 return@launch
             }
 
             sessionStore.saveSession(session)
-            pendingCount = sessionStore.unsyncedCount()
+            refreshStoredSessionDebugStatus()
 
             statusText = "Saved recovery session"
             recordingState = RecordingState.SAVED
@@ -487,18 +509,19 @@ class MainActivity : ComponentActivity() {
                     sessionStore.markSessionQueued(session.sessionId)
                 }
 
-                pendingCount = sessionStore.unsyncedCount()
+                refreshStoredSessionDebugStatus()
                 syncStatusText = "Sync: $message"
             }
         }
     }
 
     private fun queuePendingSessionsForSync() {
+        refreshStoredSessionDebugStatus()
         syncStatusText = "Sync: queueing pending..."
 
         sessionSync.sendPendingSessions(sessionStore) { success, message ->
             runOnUiThread {
-                pendingCount = sessionStore.unsyncedCount()
+                refreshStoredSessionDebugStatus()
                 syncStatusText = if (success) {
                     "Sync: $message"
                 } else {
@@ -506,6 +529,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun refreshStoredSessionDebugStatus() {
+        pendingCount = sessionStore.unsyncedCount()
+        debugStatusText = statusSummary()
+    }
+
+    private fun statusSummary(): String {
+        val sessions = sessionStore.loadAllSessions()
+
+        val pending = sessions.count { it.syncStatus == "PENDING" }
+        val queued = sessions.count { it.syncStatus == "QUEUED" }
+        val synced = sessions.count { it.syncStatus == "SYNCED" }
+
+        return "Debug: Total ${sessions.size}, P $pending, Q $queued, S $synced"
     }
 
     private fun resetCurrentSession() {

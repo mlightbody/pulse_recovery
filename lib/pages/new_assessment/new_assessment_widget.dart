@@ -12,6 +12,7 @@ import '/services/recovery_assessment_service.dart';
 import '/services/recovery_session_import_service.dart';
 import '/services/watch_session_service.dart';
 import '/widgets/recovery_curve_chart.dart';
+import '/widgets/android_watch_sessions_debug_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'new_assessment_model.dart';
@@ -654,6 +655,13 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                 _watchSessionSection(),
                 if (_pendingSessions.isNotEmpty || _loadingWatchSessions)
                   const SizedBox(height: 16.0),
+
+                // Temporary Android / Samsung Watch debug panel.
+                // This confirms that the native Android receiver stored
+                // the Wear OS session and that Flutter can read it.
+                const AndroidWatchSessionsDebugPanel(),
+
+                const SizedBox(height: 16.0),
                 _inputSection(),
                 const SizedBox(height: 32.0),
                 StepHeaderWidget(
