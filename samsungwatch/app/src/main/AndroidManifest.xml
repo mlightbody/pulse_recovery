@@ -1,8 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS"
+        android:maxSdkVersion="35" />
+
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS_BACKGROUND"
+        android:maxSdkVersion="35" />
+
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <uses-feature android:name="android.hardware.type.watch" />
 
@@ -12,16 +25,18 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault">
+
         <uses-library
             android:name="com.google.android.wearable"
             android:required="true" />
+
         <uses-library
             android:name="wear-sdk"
             android:required="false" />
 
         <!--
-               Set to true if your app is Standalone, that is, it does not require the handheld
-               app to run.
+            Set to true if your app is standalone, that is,
+            it does not require the handheld app to run.
         -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
@@ -38,6 +53,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Foreground service that owns HR recording, recovery timing,
+            saving, and sync. This allows recording to continue when
+            the watch app screen sleeps or the Activity is backgrounded.
+        -->
+        <service
+            android:name=".service.HrRecordingService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
         <service
             android:name=".sync.WatchAckReceiverService"
             android:exported="true">
@@ -49,6 +75,7 @@
                     android:pathPrefix="/hr_session_ack" />
             </intent-filter>
         </service>
+
     </application>
 
 </manifest>

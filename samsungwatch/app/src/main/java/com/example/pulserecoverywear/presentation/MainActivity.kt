@@ -3,6 +3,7 @@ package com.example.pulserecoverywear.presentation
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -164,6 +165,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Important workaround:
+        // keeping the Activity awake preserves the reliable foreground HR sampling
+        // behaviour we saw with MeasureClient.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         sessionStore = HrSessionStore(this)
         sessionSync = WatchSessionSync(this)
@@ -426,7 +432,7 @@ class MainActivity : ComponentActivity() {
                     DataType.HEART_RATE_BPM,
                     heartRateCallback
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // We still try to save the session even if unregister throws.
             }
 
@@ -623,6 +629,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         recoveryJob?.cancel()
+
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         if (recordingState == RecordingState.WORKOUT ||
             recordingState == RecordingState.RECOVERY

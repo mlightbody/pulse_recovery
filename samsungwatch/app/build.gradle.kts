@@ -42,6 +42,7 @@ android {
 dependencies {
     implementation("androidx.health:health-services-client:1.1.0-rc02")
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
+    implementation("com.google.guava:guava:33.2.1-android")
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
     implementation(libs.compose.foundation)
