@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import '/components/button/button_widget.dart';
 import '/components/step_header/step_header_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
+import '/models/heart_rate_sample.dart';
 import '/utils/recovery_pattern.dart';
 import '/utils/recovery_assessment_levels.dart';
 import '/utils/recovery_decision_engine.dart';
@@ -12,7 +15,7 @@ import '/services/recovery_assessment_service.dart';
 import '/services/recovery_session_import_service.dart';
 import '/services/watch_session_service.dart';
 import '/widgets/recovery_curve_chart.dart';
-import '/widgets/android_watch_sessions_debug_panel.dart';
+import '/services/android_watch_session_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'new_assessment_model.dart';
@@ -50,11 +53,16 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
   String? _selectedSource;
   PendingRecoverySession? _selectedWatchSession;
 
+  List<Map<String, dynamic>> _androidWatchSessions = [];
+  bool _loadingAndroidWatchSessions = true;
+  Map<String, dynamic>? _selectedAndroidWatchSession;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => NewAssessmentModel());
     _loadPendingSessions();
+    _loadAndroidWatchSessions();
   }
 
   Future<void> _loadPendingSessions() async {
@@ -65,6 +73,19 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
     setState(() {
       _pendingSessions = sessions;
       _loadingWatchSessions = false;
+    });
+  }
+
+  Future<void> _loadAndroidWatchSessions() async {
+    final sessions = await AndroidWatchSessionService.getReceivedWatchSessions();
+
+    if (!mounted) return;
+
+    setState(() {
+      _androidWatchSessions = sessions
+          .where((session) => session['importStatus']?.toString() != 'imported')
+          .toList();
+      _loadingAndroidWatchSessions = false;
     });
   }
 
@@ -97,12 +118,52 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
       hr120Controller.text = values['hr120'].toString();
       _selectedSource = session.source;
       _selectedWatchSession = session;
+      _selectedAndroidWatchSession = null;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           '${session.source} values added. Now complete effort and feeling.',
+        ),
+      ),
+    );
+  }
+
+  void _useAndroidWatchSession(Map<String, dynamic> session) {
+    final peakHr = _asInt(session['peakHr']);
+    final hr60 = _asInt(session['hr60']);
+    final hr120 = _asInt(session['hr120']);
+
+    if (peakHr <= 0 || hr60 <= 0 || hr120 <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This Samsung watch session does not contain enough data.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final source = session['source']?.toString() ?? 'Samsung Watch';
+
+    setState(() {
+      peakHrController.text = peakHr.toString();
+      hr60Controller.text = hr60.toString();
+      hr120Controller.text = hr120.toString();
+
+      _selectedSource = source;
+      _selectedAndroidWatchSession = session;
+
+      // Ensure Apple Watch selection is cleared.
+      _selectedWatchSession = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '$source values added. Now complete effort and feeling.',
         ),
       ),
     );
@@ -206,15 +267,42 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         adviceSummary: recoveryDecision.summary,
         adviceRecommendation: recoveryDecision.recommendation,
 
-        // Raw Apple Watch session data, when available.
-        heartRateSamples: _selectedWatchSession?.samples,
-        workoutStartedAt: _selectedWatchSession?.workoutStartedAt,
-        recoveryStartedAt: _selectedWatchSession?.recoveryStartedAt,
+        // Raw watch session data, when available.
+        // Apple Watch and Samsung Watch are both saved using the same structure:
+        // heartRateSamples: [{ timestamp, bpm, phase }]
+        // workoutStartedAt: DateTime
+        // recoveryStartedAt: DateTime
+        heartRateSamples: _selectedWatchSession?.samples ??
+            (_selectedAndroidWatchSession == null
+                ? null
+                : _androidHeartRateSamplesFromSession(
+                    _selectedAndroidWatchSession!,
+                  )),
+        workoutStartedAt: _selectedWatchSession?.workoutStartedAt ??
+            (_selectedAndroidWatchSession == null
+                ? null
+                : _androidWorkoutStartedAt(
+                    _selectedAndroidWatchSession!,
+                  )),
+        recoveryStartedAt: _selectedWatchSession?.recoveryStartedAt ??
+            (_selectedAndroidWatchSession == null
+                ? null
+                : _androidRecoveryStartedAt(
+                    _selectedAndroidWatchSession!,
+                  )),
       );
 
-      // Clear the pending watch session only after the Firebase save succeeds.
+      // Clear/mark the selected watch session only after the Firebase save succeeds.
       if (_selectedWatchSession != null) {
         await WatchSessionService.instance.clearLatestSession();
+      }
+
+      if (_selectedAndroidWatchSession != null) {
+        final sessionId = _selectedAndroidWatchSession!['sessionId']?.toString();
+
+        if (sessionId != null && sessionId.isNotEmpty) {
+          await AndroidWatchSessionService.markWatchSessionImported(sessionId);
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -227,11 +315,18 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
 
     if (!mounted) return;
 
-    if (_selectedWatchSession != null || _selectedSource != null) {
+    if (_selectedWatchSession != null ||
+        _selectedAndroidWatchSession != null ||
+        _selectedSource != null) {
+      await _loadAndroidWatchSessions();
+
+      if (!mounted) return;
+
       setState(() {
         _pendingSessions = [];
         _selectedSource = null;
         _selectedWatchSession = null;
+        _selectedAndroidWatchSession = null;
       });
     }
 
@@ -287,6 +382,135 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
         context.goNamed(ProfileSettingsWidget.routeName);
         break;
     }
+  }
+
+  int _asInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  Map<String, dynamic> _androidPayloadMap(Map<String, dynamic> session) {
+    final payload = session['payload']?.toString();
+
+    if (payload == null || payload.trim().isEmpty) {
+      return {};
+    }
+
+    try {
+      final decoded = jsonDecode(payload);
+
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+
+      return {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  DateTime? _dateTimeFromMillis(dynamic value) {
+    final millis = _asInt(value);
+
+    if (millis <= 0) {
+      return null;
+    }
+
+    return DateTime.fromMillisecondsSinceEpoch(millis);
+  }
+
+  DateTime? _androidWorkoutStartedAt(Map<String, dynamic> session) {
+    final payload = _androidPayloadMap(session);
+
+    return _dateTimeFromMillis(
+          session['workoutStartedAtMillis'],
+        ) ??
+        _dateTimeFromMillis(
+          payload['workoutStartedAtMillis'],
+        );
+  }
+
+  DateTime? _androidRecoveryStartedAt(Map<String, dynamic> session) {
+    final payload = _androidPayloadMap(session);
+
+    // For the Samsung watch flow, recovery starts when the workout is stopped.
+    return _dateTimeFromMillis(
+          session['workoutEndedAtMillis'],
+        ) ??
+        _dateTimeFromMillis(
+          payload['workoutEndedAtMillis'],
+        );
+  }
+
+  List<HeartRateSample> _androidHeartRateSamplesFromSession(
+    Map<String, dynamic> session,
+  ) {
+    final payload = _androidPayloadMap(session);
+    final rawPoints = payload['points'];
+
+    if (rawPoints is! List) {
+      return [];
+    }
+
+    final recoveryStartedAt = _androidRecoveryStartedAt(session);
+    final recoveryStartedMillis = recoveryStartedAt?.millisecondsSinceEpoch;
+
+    final samples = <HeartRateSample>[];
+
+    for (final rawPoint in rawPoints) {
+      if (rawPoint is! Map) {
+        continue;
+      }
+
+      final point = Map<String, dynamic>.from(rawPoint);
+
+      final bpmRaw = point['bpm'];
+      final timestampMillis = _asInt(point['timestampMillis']);
+
+      if (bpmRaw is! num || timestampMillis <= 0) {
+        continue;
+      }
+
+      final timestamp = DateTime.fromMillisecondsSinceEpoch(timestampMillis);
+
+      final phase = recoveryStartedMillis == null
+          ? null
+          : timestampMillis < recoveryStartedMillis
+              ? 'workout'
+              : 'recovery';
+
+      samples.add(
+        HeartRateSample(
+          timestamp: timestamp,
+          bpm: bpmRaw.round(),
+          phase: phase,
+        ),
+      );
+    }
+
+    samples.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    return samples;
+  }
+
+  String _formatAndroidWatchDate(dynamic millisValue) {
+    final millis = _asInt(millisValue);
+
+    if (millis <= 0) {
+      return 'Unknown time';
+    }
+
+    final date = DateTime.fromMillisecondsSinceEpoch(millis);
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:$minute';
   }
 
   InputDecoration _inputDecoration({
@@ -415,6 +639,170 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                 disabled: false,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _androidWatchSessionSection() {
+    if (_loadingAndroidWatchSessions) {
+      return Container(
+        decoration: BoxDecoration(
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          borderRadius: BorderRadius.circular(40.0),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_androidWatchSessions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: FlutterFlowTheme.of(context).secondaryBackground,
+        borderRadius: BorderRadius.circular(40.0),
+        border: Border.all(
+          color: FlutterFlowTheme.of(context).primary,
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Samsung Watch Sessions',
+              style: FlutterFlowTheme.of(context).labelLarge.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                    color: FlutterFlowTheme.of(context).primaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.3,
+                  ),
+            ),
+            const SizedBox(height: 8.0),
+            Text(
+              'Choose a received Samsung watch recovery session to fill the recovery fields below.',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(),
+                    color: FlutterFlowTheme.of(context).secondaryText,
+                    letterSpacing: 0.0,
+                    lineHeight: 1.55,
+                  ),
+            ),
+            const SizedBox(height: 16.0),
+            ..._androidWatchSessions.map((session) {
+              final sessionId = session['sessionId']?.toString() ?? '';
+              final source = session['source']?.toString() ?? 'Samsung Watch';
+
+              final peakHr = _asInt(session['peakHr']);
+              final workoutEndHr = _asInt(session['workoutEndHr']);
+              final hr60 = _asInt(session['hr60']);
+              final hr120 = _asInt(session['hr120']);
+              final sampleCount = _asInt(session['sampleCount']);
+              final receivedAt = _formatAndroidWatchDate(
+                session['receivedAtMillis'],
+              );
+
+              final samsungSamples = _androidHeartRateSamplesFromSession(
+                session,
+              );
+              final samsungRecoveryStartedAt = _androidRecoveryStartedAt(
+                session,
+              );
+
+              final isSelected =
+                  _selectedAndroidWatchSession?['sessionId']?.toString() ==
+                      sessionId;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16.0),
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: FlutterFlowTheme.of(context).primaryBackground,
+                  borderRadius: BorderRadius.circular(24.0),
+                  border: Border.all(
+                    color: isSelected
+                        ? FlutterFlowTheme.of(context).primary
+                        : FlutterFlowTheme.of(context).alternate,
+                    width: isSelected ? 2.0 : 1.0,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      source,
+                      style: FlutterFlowTheme.of(context).bodyMedium.override(
+                            font: GoogleFonts.dmSans(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            color: FlutterFlowTheme.of(context).primaryText,
+                            letterSpacing: 0.0,
+                            lineHeight: 1.4,
+                          ),
+                    ),
+                    const SizedBox(height: 4.0),
+                    Text(
+                      'Received: $receivedAt',
+                      style: FlutterFlowTheme.of(context).bodySmall.override(
+                            font: GoogleFonts.dmSans(),
+                            color: FlutterFlowTheme.of(context).secondaryText,
+                            letterSpacing: 0.0,
+                            lineHeight: 1.4,
+                          ),
+                    ),
+                    const SizedBox(height: 12.0),
+                    Text(
+                      'Peak HR: ${peakHr > 0 ? peakHr : '-'}\n'
+                      'Workout end HR: ${workoutEndHr > 0 ? workoutEndHr : '-'}\n'
+                      '60-second HR: ${hr60 > 0 ? hr60 : '-'}\n'
+                      '120-second HR: ${hr120 > 0 ? hr120 : '-'}\n'
+                      'Samples: $sampleCount',
+                      style: FlutterFlowTheme.of(context).bodyMedium.override(
+                            font: GoogleFonts.dmSans(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            color: FlutterFlowTheme.of(context).primaryText,
+                            letterSpacing: 0.0,
+                            lineHeight: 1.55,
+                          ),
+                    ),
+                    if (samsungSamples.length >= 2 &&
+                        samsungRecoveryStartedAt != null) ...[
+                      const SizedBox(height: 16.0),
+                      RecoveryCurveChart(
+                        samples: samsungSamples,
+                        recoveryStartedAt: samsungRecoveryStartedAt,
+                      ),
+                    ],
+                    const SizedBox(height: 16.0),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _useAndroidWatchSession(session),
+                      child: ButtonWidget(
+                        content: isSelected
+                            ? 'Samsung Values Added'
+                            : 'Use Samsung Watch Session',
+                        iconPresent: false,
+                        iconEndPresent: false,
+                        variant: 'primary',
+                        size: 'large',
+                        fullWidth: true,
+                        loading: false,
+                        disabled: false,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),
@@ -655,13 +1043,10 @@ class _NewAssessmentWidgetState extends State<NewAssessmentWidget> {
                 _watchSessionSection(),
                 if (_pendingSessions.isNotEmpty || _loadingWatchSessions)
                   const SizedBox(height: 16.0),
-
-                // Temporary Android / Samsung Watch debug panel.
-                // This confirms that the native Android receiver stored
-                // the Wear OS session and that Flutter can read it.
-                const AndroidWatchSessionsDebugPanel(),
-
-                const SizedBox(height: 16.0),
+                _androidWatchSessionSection(),
+                if (_androidWatchSessions.isNotEmpty ||
+                    _loadingAndroidWatchSessions)
+                  const SizedBox(height: 16.0),
                 _inputSection(),
                 const SizedBox(height: 32.0),
                 StepHeaderWidget(
