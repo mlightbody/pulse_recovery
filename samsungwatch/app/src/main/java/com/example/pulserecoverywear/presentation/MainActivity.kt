@@ -93,6 +93,12 @@ class MainActivity : ComponentActivity() {
     private var syncStatusText by mutableStateOf("Sync: not attempted")
     private var debugStatusText by mutableStateOf("Debug: not checked")
 
+    private var syncButtonText by mutableStateOf("Sync Now")
+    private var debugButtonText by mutableStateOf("Debug Status")
+    private var cleanButtonText by mutableStateOf("Clean Synced")
+
+    private var syncInProgress by mutableStateOf(false)
+
     private var recoveryJob: Job? = null
 
     private val bodySensorPermissionLauncher =
@@ -296,36 +302,33 @@ class MainActivity : ComponentActivity() {
                         Button(
                             onClick = { queuePendingSessionsForSync() },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = recordingState == RecordingState.IDLE ||
-                                    recordingState == RecordingState.SAVED
+                            enabled = !syncInProgress &&
+                                    (recordingState == RecordingState.IDLE ||
+                                            recordingState == RecordingState.SAVED)
                         ) {
-                            Text("Sync Now")
+                            Text(syncButtonText)
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Button(
-                            onClick = { refreshStoredSessionDebugStatus() },
+                            onClick = { refreshStoredSessionDebugStatusFromButton() },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = recordingState == RecordingState.IDLE ||
                                     recordingState == RecordingState.SAVED
                         ) {
-                            Text("Debug Status")
+                            Text(debugButtonText)
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Button(
-                            onClick = {
-                                sessionStore.deleteSyncedSessions()
-                                refreshStoredSessionDebugStatus()
-                                syncStatusText = "Deleted synced sessions"
-                            },
+                            onClick = { cleanSyncedSessionsFromButton() },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = recordingState == RecordingState.IDLE ||
                                     recordingState == RecordingState.SAVED
                         ) {
-                            Text("Clean Synced")
+                            Text(cleanButtonText)
                         }
                     }
                 }
@@ -363,6 +366,11 @@ class MainActivity : ComponentActivity() {
         statusText = "Starting workout..."
         syncStatusText = "Sync: not attempted"
         debugStatusText = statusSummary()
+
+        syncButtonText = "Sync Now"
+        debugButtonText = "Debug Status"
+        cleanButtonText = "Clean Synced"
+        syncInProgress = false
 
         lifecycleScope.launch {
             try {
@@ -528,15 +536,32 @@ class MainActivity : ComponentActivity() {
 
     private fun queuePendingSessionsForSync() {
         refreshStoredSessionDebugStatus()
+
+        syncInProgress = true
+        syncButtonText = "Syncing..."
         syncStatusText = "Sync: queueing pending..."
 
         sessionSync.sendPendingSessions(sessionStore) { success, message ->
             runOnUiThread {
                 refreshStoredSessionDebugStatus()
+
                 syncStatusText = if (success) {
                     "Sync: $message"
                 } else {
                     "Sync issue: $message"
+                }
+
+                syncButtonText = if (success) {
+                    "Synced ✓"
+                } else {
+                    "Sync issue"
+                }
+
+                syncInProgress = false
+
+                lifecycleScope.launch {
+                    delay(1500L)
+                    syncButtonText = "Sync Now"
                 }
             }
         }
@@ -545,6 +570,30 @@ class MainActivity : ComponentActivity() {
     private fun refreshStoredSessionDebugStatus() {
         pendingCount = sessionStore.unsyncedCount()
         debugStatusText = statusSummary()
+    }
+
+    private fun refreshStoredSessionDebugStatusFromButton() {
+        refreshStoredSessionDebugStatus()
+
+        debugButtonText = "Checked ✓"
+
+        lifecycleScope.launch {
+            delay(1200L)
+            debugButtonText = "Debug Status"
+        }
+    }
+
+    private fun cleanSyncedSessionsFromButton() {
+        sessionStore.deleteSyncedSessions()
+        refreshStoredSessionDebugStatus()
+
+        syncStatusText = "Deleted synced sessions"
+        cleanButtonText = "Cleaned ✓"
+
+        lifecycleScope.launch {
+            delay(1200L)
+            cleanButtonText = "Clean Synced"
+        }
     }
 
     private fun statusSummary(): String {
