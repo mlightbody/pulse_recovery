@@ -30,6 +30,18 @@ enum RecoveryPatternDecision {
   fatigueMismatch,
 }
 
+enum _SessionRecoveryPattern {
+  strongRecovery,
+  strongStartLimitedFollowThrough,
+  slowStartBetterSecondMinute,
+  highStrain,
+  hiddenLoad,
+  fatigueMismatch,
+  easySessionHandledWell,
+  weakRecovery,
+  normalResponse,
+}
+
 class PersonalisedRecoveryAdvice {
   final RecoveryPatternDecision pattern;
   final String patternTitle;
@@ -48,6 +60,37 @@ class PersonalisedRecoveryAdvice {
     required this.whatToTrackNext,
     required this.confidence,
   });
+}
+
+class _AdviceParts {
+  final String recoveryTypeTitle;
+  final String recoveryPatternDetail;
+  final String testInterpretation;
+  final String trainingFocus;
+  final String specificSession;
+  final String measurableTarget;
+  final String responseWindow;
+  final String progressRule;
+  final String holdBackRule;
+
+  const _AdviceParts({
+    required this.recoveryTypeTitle,
+    required this.recoveryPatternDetail,
+    required this.testInterpretation,
+    required this.trainingFocus,
+    required this.specificSession,
+    required this.measurableTarget,
+    required this.responseWindow,
+    required this.progressRule,
+    required this.holdBackRule,
+  });
+
+  String get combinedRecommendation {
+    return 'Training focus: $trainingFocus\n\n'
+        'Try this: $specificSession\n\n'
+        'Measure this: $measurableTarget\n\n'
+        'Response window: $responseWindow';
+  }
 }
 
 double calculateHrrScore({
@@ -95,19 +138,58 @@ RecoveryDecisionResult assessRecoveryDecision({
   final rpeScore = clamp01(rpe / 10.0);
   final feelingScore = clamp01(feelingAfter / 10.0);
 
-  // Kept for display/debug compatibility with the previous engine.
-  // The final decision is now made from interpretable signals rather than
-  // relying only on recoveryGap.
   final expectedRecovery = clamp01(1.0 - rpeScore);
   final recoveryGap = metrics.hrrScore - expectedRecovery;
   final fatigueSignal = 1.0 - feelingScore;
 
+  final firstMinuteDrop = peakHr - hr60;
+  final secondMinuteDrop = hr60 - hr120;
+  final totalDrop = peakHr - hr120;
+  final totalDropPercent = peakHr > 0 ? totalDrop / peakHr : 0.0;
+
+  final pattern = _classifySessionPattern(
+    peakHr: peakHr,
+    hr60: hr60,
+    hr120: hr120,
+    rpe: rpe,
+    feelingAfter: feelingAfter,
+    firstMinuteDrop: firstMinuteDrop,
+    secondMinuteDrop: secondMinuteDrop,
+    totalDrop: totalDrop,
+    totalDropPercent: totalDropPercent,
+  );
+
+  final advice = _adviceForPattern(
+    pattern: pattern,
+    peakHr: peakHr,
+    hr60: hr60,
+    hr120: hr120,
+    rpe: rpe,
+    feelingAfter: feelingAfter,
+    firstMinuteDrop: firstMinuteDrop,
+    secondMinuteDrop: secondMinuteDrop,
+    totalDrop: totalDrop,
+    totalDropPercent: totalDropPercent,
+  );
+
+  final reasonTag = _reasonTagForPattern(pattern, decision.reasonTag);
+  final state = _stateForPattern(pattern, decision.state);
+
   return RecoveryDecisionResult(
-    state: decision.state,
-    reasonTag: decision.reasonTag,
-    title: RecoveryMessageBuilder.titleFor(decision),
-    summary: RecoveryMessageBuilder.summaryFor(decision),
-    recommendation: RecoveryMessageBuilder.recommendationFor(decision),
+    state: state,
+    reasonTag: reasonTag,
+    title: advice.recoveryTypeTitle,
+    summary: advice.testInterpretation,
+    recommendation: advice.combinedRecommendation,
+    recoveryTypeTitle: advice.recoveryTypeTitle,
+    recoveryPatternDetail: advice.recoveryPatternDetail,
+    testInterpretation: advice.testInterpretation,
+    trainingFocus: advice.trainingFocus,
+    specificSession: advice.specificSession,
+    measurableTarget: advice.measurableTarget,
+    responseWindow: advice.responseWindow,
+    progressRule: advice.progressRule,
+    holdBackRule: advice.holdBackRule,
     hrrScore: metrics.hrrScore,
     rpeScore: rpeScore,
     feelingScore: feelingScore,
@@ -115,6 +197,326 @@ RecoveryDecisionResult assessRecoveryDecision({
     recoveryGap: recoveryGap,
     fatigueSignal: fatigueSignal,
   );
+}
+
+_SessionRecoveryPattern _classifySessionPattern({
+  required int peakHr,
+  required int hr60,
+  required int hr120,
+  required int rpe,
+  required int feelingAfter,
+  required int firstMinuteDrop,
+  required int secondMinuteDrop,
+  required int totalDrop,
+  required double totalDropPercent,
+}) {
+  final hardSession = rpe >= 7;
+  final veryHardSession = rpe >= 8;
+  final feltPoorAfter = feelingAfter <= 4;
+  final feltGoodAfter = feelingAfter >= 7;
+  final lowTotalRecovery = totalDrop < 22 || totalDropPercent < 0.15;
+  final strongFirstMinute = firstMinuteDrop >= 30;
+  final moderateFirstMinute = firstMinuteDrop >= 18;
+  final weakFirstMinute = firstMinuteDrop < 18;
+  final usefulSecondMinute = secondMinuteDrop >= 10;
+  final limitedSecondMinute = secondMinuteDrop <= 6;
+  final strongTotalRecovery = totalDrop >= 45 || totalDropPercent >= 0.30;
+
+  if (veryHardSession && feltPoorAfter && lowTotalRecovery) {
+    return _SessionRecoveryPattern.highStrain;
+  }
+
+  if (hardSession && feltPoorAfter && totalDrop < 30) {
+    return _SessionRecoveryPattern.highStrain;
+  }
+
+  if (feltGoodAfter && lowTotalRecovery) {
+    return _SessionRecoveryPattern.hiddenLoad;
+  }
+
+  if (!lowTotalRecovery && feltPoorAfter) {
+    return _SessionRecoveryPattern.fatigueMismatch;
+  }
+
+  if (strongFirstMinute && limitedSecondMinute) {
+    return _SessionRecoveryPattern.strongStartLimitedFollowThrough;
+  }
+
+  if (weakFirstMinute && usefulSecondMinute) {
+    return _SessionRecoveryPattern.slowStartBetterSecondMinute;
+  }
+
+  if (strongTotalRecovery && moderateFirstMinute && usefulSecondMinute) {
+    return _SessionRecoveryPattern.strongRecovery;
+  }
+
+  if (rpe <= 4 && totalDrop >= 30 && feltGoodAfter) {
+    return _SessionRecoveryPattern.easySessionHandledWell;
+  }
+
+  if (lowTotalRecovery) {
+    return _SessionRecoveryPattern.weakRecovery;
+  }
+
+  return _SessionRecoveryPattern.normalResponse;
+}
+
+RecoveryReasonTag _reasonTagForPattern(
+  _SessionRecoveryPattern pattern,
+  RecoveryReasonTag fallback,
+) {
+  switch (pattern) {
+    case _SessionRecoveryPattern.strongRecovery:
+      return RecoveryReasonTag.strongRecovery;
+    case _SessionRecoveryPattern.strongStartLimitedFollowThrough:
+      return RecoveryReasonTag.normalResponse;
+    case _SessionRecoveryPattern.slowStartBetterSecondMinute:
+      return RecoveryReasonTag.normalResponse;
+    case _SessionRecoveryPattern.highStrain:
+      return RecoveryReasonTag.highStrain;
+    case _SessionRecoveryPattern.hiddenLoad:
+      return RecoveryReasonTag.hiddenLoad;
+    case _SessionRecoveryPattern.fatigueMismatch:
+      return RecoveryReasonTag.fatigueMismatch;
+    case _SessionRecoveryPattern.easySessionHandledWell:
+      return RecoveryReasonTag.easySessionHandledWell;
+    case _SessionRecoveryPattern.weakRecovery:
+      return RecoveryReasonTag.weakRecovery;
+    case _SessionRecoveryPattern.normalResponse:
+      return fallback;
+  }
+}
+
+RecoveryDecisionState _stateForPattern(
+  _SessionRecoveryPattern pattern,
+  RecoveryDecisionState fallback,
+) {
+  switch (pattern) {
+    case _SessionRecoveryPattern.strongRecovery:
+      return RecoveryDecisionState.progress;
+    case _SessionRecoveryPattern.strongStartLimitedFollowThrough:
+      return RecoveryDecisionState.maintain;
+    case _SessionRecoveryPattern.slowStartBetterSecondMinute:
+      return RecoveryDecisionState.maintain;
+    case _SessionRecoveryPattern.highStrain:
+      return RecoveryDecisionState.recover;
+    case _SessionRecoveryPattern.hiddenLoad:
+      return RecoveryDecisionState.caution;
+    case _SessionRecoveryPattern.fatigueMismatch:
+      return RecoveryDecisionState.caution;
+    case _SessionRecoveryPattern.easySessionHandledWell:
+      return RecoveryDecisionState.maintain;
+    case _SessionRecoveryPattern.weakRecovery:
+      return RecoveryDecisionState.caution;
+    case _SessionRecoveryPattern.normalResponse:
+      return fallback;
+  }
+}
+
+_AdviceParts _adviceForPattern({
+  required _SessionRecoveryPattern pattern,
+  required int peakHr,
+  required int hr60,
+  required int hr120,
+  required int rpe,
+  required int feelingAfter,
+  required int firstMinuteDrop,
+  required int secondMinuteDrop,
+  required int totalDrop,
+  required double totalDropPercent,
+}) {
+  final percentText = (totalDropPercent * 100).toStringAsFixed(1);
+
+  switch (pattern) {
+    case _SessionRecoveryPattern.strongRecovery:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Strong recovery response',
+        recoveryPatternDetail:
+            'Your heart rate dropped well in the first minute and continued to fall into the second minute.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). Given the effort and how you felt afterwards, this looks like a good recovery result for this test.',
+        trainingFocus:
+            'Progress carefully. Keep the recovery quality while adding only one training stress at a time.',
+        specificSession:
+            'For the next 4 weeks, keep 2 easy aerobic sessions each week and add 1 quality session: 8-10 rounds of 1 minute hard followed by 1 minute easy walking. Keep the hard minute around 8/10 effort, not an all-out sprint.',
+        measurableTarget:
+            'Retest weekly after a similar workout. Aim to maintain or improve the 120-second drop while the workout feels no harder, or lower your 120-second heart rate by 3-5 bpm.',
+        responseWindow:
+            'Use 2 weeks as an early check. Judge real progress after 4 weeks and 3-4 comparable tests.',
+        progressRule:
+            'Progress by adding 1-2 reps or slightly extending an easy session only if recovery remains stable.',
+        holdBackRule:
+            'Do not increase both workout intensity and duration in the same week.',
+      );
+
+    case _SessionRecoveryPattern.strongStartLimitedFollowThrough:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Strong start, limited follow-through',
+        recoveryPatternDetail:
+            'Your early recovery was strong, but the second minute added relatively little extra drop.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). The useful target is not just the first-minute drop; it is improving the continued recovery between 60 and 120 seconds.',
+        trainingFocus:
+            'Build sustained recovery after the first minute without making the session maximal.',
+        specificSession:
+            'For the next 4 weeks, do 1-2 interval sessions per week: 8 rounds of 1 minute hard, then 1 minute easy walking. If recovery remains stable after 2 weeks, progress to 10 rounds. Keep at least 48 hours between hard sessions.',
+        measurableTarget:
+            'Retest weekly after a similar workout. Aim to improve the second-minute drop by 2-3 bpm, or lower your 120-second heart rate by 3-5 bpm.',
+        responseWindow:
+            'Expect noise after 2 weeks. A realistic response window is 4-6 weeks.',
+        progressRule:
+            'Add reps before adding intensity. Keep the hard reps controlled at about 8/10 effort.',
+        holdBackRule:
+            'If your 120-second heart rate rises or your post-workout feeling drops below 6/10, hold the number of reps steady or reduce the next session.',
+      );
+
+    case _SessionRecoveryPattern.slowStartBetterSecondMinute:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Slow start, better second minute',
+        recoveryPatternDetail:
+            'Your recovery started more slowly, then improved meaningfully in the second minute.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). Recovery was delayed rather than absent.',
+        trainingFocus:
+            'Improve the early transition from hard effort to recovery, mainly through aerobic base work and a calmer cooldown.',
+        specificSession:
+            'For the next 4-6 weeks, add 2-3 easy aerobic sessions per week of 25-45 minutes at conversational pace. After harder workouts, finish with 5 minutes very easy movement before starting the recovery test.',
+        measurableTarget:
+            'Retest weekly after a similar workout. Aim for the first-minute drop to improve by 3-5 bpm without making the workout feel harder.',
+        responseWindow:
+            'Use 4 weeks for an early training response. Use 6 weeks before deciding whether the pattern has really changed.',
+        progressRule:
+            'Extend easy duration by 5 minutes before adding intensity.',
+        holdBackRule:
+            'Avoid adding extra intervals until the first-minute recovery becomes more consistent.',
+      );
+
+    case _SessionRecoveryPattern.highStrain:
+      return _AdviceParts(
+        recoveryTypeTitle: 'High strain signal',
+        recoveryPatternDetail:
+            'Recovery was limited and your post-workout feeling was low, especially relative to the effort.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). Both the recovery numbers and your post-workout feeling suggest this session placed a high load on you.',
+        trainingFocus:
+            'Reduce strain before adding intensity. The immediate goal is recovery rebound, not progression.',
+        specificSession:
+            'For the next 7-10 days, make sessions easier or shorter. Use easy aerobic work of 20-35 minutes at conversational pace and avoid hard intervals. Then repeat a similar controlled test.',
+        measurableTarget:
+            'Aim for your 120-second heart rate to be 3-5 bpm lower after a similar workout, or for your feeling-after score to improve by at least 2 points.',
+        responseWindow:
+            'A rebound can show within 3-10 days. Do not judge fitness gain until you have 3-4 comparable tests over 4 weeks.',
+        progressRule:
+            'Resume intensity only after recovery and post-workout feeling return to normal.',
+        holdBackRule:
+            'If this pattern repeats, take another easier block rather than pushing through.',
+      );
+
+    case _SessionRecoveryPattern.hiddenLoad:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Possible hidden load',
+        recoveryPatternDetail:
+            'You felt okay, but the heart-rate recovery was weaker than expected.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). This can happen when load is building before it is obvious subjectively.',
+        trainingFocus:
+            'Treat this as a caution signal. Keep training controlled and check whether recovery rebounds.',
+        specificSession:
+            'For the next 3-7 days, keep sessions easy to moderate. Use 25-40 minutes conversational aerobic work, or reduce the next interval session by 20-30%.',
+        measurableTarget:
+            'Retest after an easier day. Aim for the 120-second drop to improve by 3-5 bpm or return to your usual range.',
+        responseWindow:
+            'This should be checked within 1 week. If it persists for 2-3 tests, treat it as accumulated load.',
+        progressRule:
+            'Progress only when both recovery and subjective feeling agree.',
+        holdBackRule:
+            'Do not add another hard session while recovery is weak, even if you feel okay.',
+      );
+
+    case _SessionRecoveryPattern.fatigueMismatch:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Recovery mismatch',
+        recoveryPatternDetail:
+            'Your heart-rate recovery looked acceptable, but you did not feel good afterwards.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). The heart-rate result is not the whole story; your lower feeling score may reflect fatigue, sleep, stress, soreness or fuelling.',
+        trainingFocus:
+            'Improve recovery quality before chasing harder sessions.',
+        specificSession:
+            'For the next 3-7 days, use one easy aerobic session of 20-35 minutes and avoid maximal intervals. Prioritise sleep, hydration and food before the next hard effort.',
+        measurableTarget:
+            'Retest after a lighter day. Aim for your feeling-after score to improve by 1-2 points without the 120-second recovery getting worse.',
+        responseWindow:
+            'Subjective recovery can change within days. Use 2-3 tests before changing the training plan.',
+        progressRule:
+            'Return to normal training when feeling-after is 7/10 or better and recovery remains stable.',
+        holdBackRule:
+            'If you repeatedly feel poor despite reasonable HR recovery, keep the advice conservative.',
+      );
+
+    case _SessionRecoveryPattern.easySessionHandledWell:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Easy session handled well',
+        recoveryPatternDetail:
+            'Your recovery was good, but the workout may not have been demanding enough to say much about fitness progression.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). This is reassuring, but an easy session is mainly a baseline check.',
+        trainingFocus:
+            'Build a cleaner baseline using a repeatable moderate test.',
+        specificSession:
+            'Use a standard test once per week: 20-30 minutes at moderate conversational effort, then record the 2-minute recovery. Keep the route, machine, resistance or pace as similar as possible.',
+        measurableTarget:
+            'Aim to compare like with like. Do not chase a big improvement from a very easy test.',
+        responseWindow:
+            'You can create a useful baseline in 2-3 weeks. Judge change after at least 3 comparable tests.',
+        progressRule:
+            'Once baseline is stable, add either 5 minutes easy duration or one controlled quality session each week.',
+        holdBackRule:
+            'Avoid interpreting easy-session recovery as proof that hard-session recovery is ready to progress.',
+      );
+
+    case _SessionRecoveryPattern.weakRecovery:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Weak recovery response',
+        recoveryPatternDetail:
+            'Your heart rate did not fall much over the two-minute recovery window.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). This suggests the next step should be controlled aerobic work rather than more intensity.',
+        trainingFocus:
+            'Build aerobic recovery capacity and reduce the chance of stacking fatigue.',
+        specificSession:
+            'For the next 4 weeks, do 2-3 easy aerobic sessions per week of 25-40 minutes at conversational pace. Keep hard intervals out until recovery improves.',
+        measurableTarget:
+            'Retest weekly after a similar workout. Aim to lower your 120-second heart rate by 3-5 bpm or improve total 120-second drop by 3-5 bpm.',
+        responseWindow:
+            'Use 4 weeks for the first meaningful check. Use 6-8 weeks for a more reliable trend.',
+        progressRule:
+            'Increase easy duration gradually before adding hard work.',
+        holdBackRule:
+            'If recovery remains weak and you feel unwell, dizzy, unusually breathless, or have chest discomfort, stop testing and seek medical advice.',
+      );
+
+    case _SessionRecoveryPattern.normalResponse:
+      return _AdviceParts(
+        recoveryTypeTitle: 'Normal recovery response',
+        recoveryPatternDetail:
+            'Your recovery pattern is within a usable range for this test, without a strong warning signal.',
+        testInterpretation:
+            'Your heart rate dropped $firstMinuteDrop bpm in the first minute and another $secondMinuteDrop bpm in the second minute, for a total 120-second drop of $totalDrop bpm ($percentText%). This is most useful as part of a trend rather than as a single result.',
+        trainingFocus:
+            'Build consistency and compare similar sessions.',
+        specificSession:
+            'For the next 4 weeks, complete 2 easy aerobic sessions of 25-40 minutes and 1 controlled quality session each week. For quality work, use 6-8 rounds of 1 minute hard and 1 minute easy.',
+        measurableTarget:
+            'Retest weekly after a similar workout. Aim for either a 3-5 bpm lower 120-second heart rate or the same recovery after a slightly harder session.',
+        responseWindow:
+            'Judge progress after 3-4 comparable tests over about 4 weeks.',
+        progressRule:
+            'Progress one variable at a time: duration, reps or intensity.',
+        holdBackRule:
+            'If effort rises but recovery worsens, hold the training load steady for another week.',
+      );
+  }
 }
 
 PersonalisedRecoveryAdvice buildPersonalisedRecoveryAdvice({
@@ -326,7 +728,7 @@ String _coachingFocus(
       return 'Keep your current training rhythm. Avoid increasing intensity and duration at the same time. $activityModifier';
 
     case RecoveryPatternDecision.stableRecovery:
-      return 'Maintain consistency. If you want to improve recovery, add one easy aerobic session or slightly extend low-intensity work. $activityModifier';
+      return 'Maintain consistency. To improve fitness, increase training load gradually and monitor whether recovery remains stable. Use easy aerobic sessions to support recovery between harder workouts. $activityModifier';
 
     case RecoveryPatternDecision.recoveryUnderStrain:
       return 'Make the next session easier or shorter and check whether recovery rebounds. Avoid stacking another hard session immediately. $activityModifier';
@@ -392,7 +794,7 @@ String _activityModifier(
 ) {
   switch (activity) {
     case 'running':
-      return 'For running, also watch leg fatigue, hills, pace and recovery between harder run days. Lower-body strength work such as calf raises, glute bridges or split squats may help resilience, but keep it progressive.';
+      return 'For running, also watch leg fatigue, hills, pace and recovery between harder run days. Lower-body strength work can help resilience, but keep it progressive.';
 
     case 'cycling':
       return 'For cycling, compare similar cadence and resistance. If recovery is slipping, favour steady aerobic rides before adding more high-resistance work.';

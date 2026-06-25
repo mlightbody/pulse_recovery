@@ -1,9 +1,7 @@
-import '/components/button/button_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/utils/recovery_decision_engine.dart';
-import '/utils/recovery_pattern.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -222,7 +220,54 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
     );
   }
 
-  Widget _coachingCard(RecoveryDecisionResult decision, int rpe, int feelingAfter) {
+  Widget _coachingDetail({
+    required String label,
+    required String body,
+    required IconData icon,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: FlutterFlowTheme.of(context).primary,
+          size: 20,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: FlutterFlowTheme.of(context).labelMedium.override(
+                      font: GoogleFonts.dmSans(
+                        fontWeight: FontWeight.w800,
+                      ),
+                      color: FlutterFlowTheme.of(context).primaryText,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                body,
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      font: GoogleFonts.dmSans(),
+                      color: FlutterFlowTheme.of(context).secondaryText,
+                      lineHeight: 1.45,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _coachingCard(
+    RecoveryDecisionResult decision,
+    int rpe,
+    int feelingAfter,
+  ) {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -256,37 +301,43 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            decision.title,
-            style: FlutterFlowTheme.of(context).titleLarge.override(
-                  font: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w800,
-                  ),
-                  color: FlutterFlowTheme.of(context).primary,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            decision.summary,
-            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                  font: GoogleFonts.dmSans(),
-                  color: FlutterFlowTheme.of(context).secondaryText,
-                  lineHeight: 1.45,
-                ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            decision.recommendation,
-            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                  font: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  color: FlutterFlowTheme.of(context).primaryText,
-                  lineHeight: 1.45,
-                ),
+          const SizedBox(height: 18),
+          _coachingDetail(
+            label: 'Training focus',
+            body: decision.trainingFocus,
+            icon: Icons.flag_rounded,
           ),
           const SizedBox(height: 16),
+          _coachingDetail(
+            label: 'Try this',
+            body: decision.specificSession,
+            icon: Icons.fitness_center_rounded,
+          ),
+          const SizedBox(height: 16),
+          _coachingDetail(
+            label: 'Measure this',
+            body: decision.measurableTarget,
+            icon: Icons.query_stats_rounded,
+          ),
+          const SizedBox(height: 16),
+          _coachingDetail(
+            label: 'Response window',
+            body: decision.responseWindow,
+            icon: Icons.calendar_month_rounded,
+          ),
+          const SizedBox(height: 16),
+          _coachingDetail(
+            label: 'Progress rule',
+            body: decision.progressRule,
+            icon: Icons.trending_up_rounded,
+          ),
+          const SizedBox(height: 16),
+          _coachingDetail(
+            label: 'Hold back if',
+            body: decision.holdBackRule,
+            icon: Icons.warning_amber_rounded,
+          ),
+          const SizedBox(height: 18),
           Text(
             'Effort: $rpe/10 • Felt after: $feelingAfter/10',
             style: FlutterFlowTheme.of(context).bodySmall.override(
@@ -295,39 +346,6 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                 ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _actionButton({
-    required String label,
-    required VoidCallback onTap,
-    required String variant,
-    IconData? icon,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      child: wrapWithModel(
-        model: _model.buttonModel1,
-        updateCallback: () => safeSetState(() {}),
-        child: ButtonWidget(
-          content: label,
-          icon: icon == null
-              ? null
-              : Icon(
-                  icon,
-                  color: FlutterFlowTheme.of(context).onPrimary,
-                  size: 16,
-                ),
-          iconPresent: icon != null,
-          iconEndPresent: false,
-          variant: variant,
-          size: 'medium',
-          fullWidth: true,
-          loading: false,
-          disabled: false,
-        ),
       ),
     );
   }
@@ -346,12 +364,6 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
 
     final hrr60 = peakHr - hr60;
     final hrr120 = peakHr - hr120;
-
-    final recoveryPattern = calculateRecoveryPattern(
-      peakHr: peakHr,
-      hr60: hr60,
-      hr120: hr120,
-    );
 
     final decision = assessRecoveryDecision(
       peakHr: peakHr,
@@ -401,9 +413,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                     _menuButton(),
                   ],
                 ),
-
                 const SizedBox(height: 24),
-
                 Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
@@ -455,9 +465,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Row(
                   children: [
                     Expanded(
@@ -479,48 +487,36 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 _statCard(
                   label: 'Heart-rate readings',
                   value: '$peakHr → $hr60 → $hr120 bpm',
                   subtitle: 'Peak, 60 seconds, 120 seconds',
                   icon: Icons.monitor_heart_rounded,
                 ),
-
                 const SizedBox(height: 24),
-
                 _sectionCard(
                   title: 'Recovery pattern',
                   body:
-                      '${recoveryPattern.label}\n\n${recoveryPattern.description}',
+                      '${decision.recoveryTypeTitle}\n\n${decision.recoveryPatternDetail}',
                   icon: Icons.timeline_rounded,
                 ),
-
                 const SizedBox(height: 16),
-
                 _sectionCard(
                   title: 'What this test suggests',
-                  body: recoveryPattern.shortAdvice,
+                  body: decision.testInterpretation,
                   icon: Icons.lightbulb_outline_rounded,
                 ),
-
                 const SizedBox(height: 16),
-
                 _coachingCard(decision, rpe, feelingAfter),
-
                 const SizedBox(height: 24),
-
                 _sectionCard(
                   title: 'Trend context',
                   body:
                       'This page explains the assessment you just completed. For personalised trend advice based on your wider history, use Fitness Progress.',
                   icon: Icons.show_chart_rounded,
                 ),
-
                 const SizedBox(height: 24),
-
                 ElevatedButton.icon(
                   onPressed: () {
                     context.goNamed(FitnessProgressWidget.routeName);
@@ -528,9 +524,7 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                   icon: const Icon(Icons.show_chart_rounded),
                   label: const Text('View Fitness Progress'),
                 ),
-
                 const SizedBox(height: 12),
-
                 ElevatedButton.icon(
                   onPressed: () {
                     context.goNamed(NewAssessmentWidget.routeName);
@@ -538,16 +532,13 @@ class _AssessmentResultWidgetState extends State<AssessmentResultWidget> {
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('New Assessment'),
                 ),
-
                 const SizedBox(height: 12),
-
                 TextButton(
                   onPressed: () {
                     context.goNamed(DashboardWidget.routeName);
                   },
                   child: const Text('Done'),
                 ),
-
                 const SizedBox(height: 24),
               ],
             ),

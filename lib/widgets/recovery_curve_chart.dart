@@ -29,8 +29,8 @@ class RecoveryCurveChart extends StatelessWidget {
         painter: _RecoveryCurvePainter(
           samples: samples,
           recoveryStartedAt: recoveryStartedAt,
-          textStyle:
-              Theme.of(context).textTheme.bodySmall ?? const TextStyle(fontSize: 11),
+          textStyle: Theme.of(context).textTheme.bodySmall ??
+              const TextStyle(fontSize: 11),
           lineColor: Theme.of(context).colorScheme.primary,
           gridColor: Theme.of(context).dividerColor,
         ),
@@ -61,17 +61,17 @@ class _RecoveryCurvePainter extends CustomPainter {
 
     final recoveryWindowSamples = sortedSamples.where((sample) {
       final seconds =
-          sample.timestamp.difference(recoveryStartedAt).inMilliseconds / 1000.0;
+          sample.timestamp.difference(recoveryStartedAt).inMilliseconds /
+              1000.0;
       return seconds >= -30 && seconds <= 130;
     }).toList();
 
-    final displaySamples = recoveryWindowSamples.length >= 2
-        ? recoveryWindowSamples
-        : sortedSamples;
+    final displaySamples =
+        recoveryWindowSamples.length >= 2 ? recoveryWindowSamples : sortedSamples;
 
     if (displaySamples.length < 2) return;
 
-    final leftPadding = 36.0;
+    final leftPadding = 46.0;
     final rightPadding = 12.0;
     final topPadding = 12.0;
     final bottomPadding = 28.0;
@@ -91,9 +91,7 @@ class _RecoveryCurvePainter extends CustomPainter {
     final yRange = math.max(1, yMax - yMin);
 
     double secondsFromRecoveryStart(HeartRateSample sample) {
-      return sample.timestamp
-              .difference(recoveryStartedAt)
-              .inMilliseconds /
+      return sample.timestamp.difference(recoveryStartedAt).inMilliseconds /
           1000.0;
     }
 
@@ -139,10 +137,10 @@ class _RecoveryCurvePainter extends CustomPainter {
         gridPaint,
       );
 
-      _drawText(
+      _drawTextCentered(
         canvas,
         '$second s',
-        Offset(x - 12, chartRect.bottom + 8),
+        Offset(x, chartRect.bottom + 8),
         textStyle,
       );
     }
@@ -151,19 +149,29 @@ class _RecoveryCurvePainter extends CustomPainter {
 
     for (final hr in [yMin, midHr, yMax]) {
       final y = yForHr(hr);
+
       canvas.drawLine(
         Offset(chartRect.left, y),
         Offset(chartRect.right, y),
         gridPaint,
       );
 
-      _drawText(
+      _drawTextRightAligned(
         canvas,
         '$hr',
-        Offset(4, y - 7),
+        Offset(chartRect.left - 10, y - 7),
         textStyle,
       );
     }
+
+    final bpmLabelY = (yForHr(yMax) + yForHr(midHr)) / 2;
+
+    _drawTextRightAligned(
+      canvas,
+      'BPM',
+      Offset(chartRect.left - 10, bpmLabelY - 7),
+      textStyle,
+    );
 
     final points = displaySamples.map((sample) {
       return Offset(xForSample(sample), yForHr(sample.bpm));
@@ -192,13 +200,6 @@ class _RecoveryCurvePainter extends CustomPainter {
     for (final point in points) {
       canvas.drawCircle(point, 2.5, pointPaint);
     }
-
-    _drawText(
-      canvas,
-      'BPM',
-      Offset(4, chartRect.top - 2),
-      textStyle,
-    );
   }
 
   void _drawText(
@@ -214,6 +215,42 @@ class _RecoveryCurvePainter extends CustomPainter {
 
     painter.layout();
     painter.paint(canvas, offset);
+  }
+
+  void _drawTextRightAligned(
+    Canvas canvas,
+    String text,
+    Offset rightTop,
+    TextStyle style,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    );
+
+    painter.layout();
+    painter.paint(
+      canvas,
+      Offset(rightTop.dx - painter.width, rightTop.dy),
+    );
+  }
+
+  void _drawTextCentered(
+    Canvas canvas,
+    String text,
+    Offset topCenter,
+    TextStyle style,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    );
+
+    painter.layout();
+    painter.paint(
+      canvas,
+      Offset(topCenter.dx - painter.width / 2, topCenter.dy),
+    );
   }
 
   @override
